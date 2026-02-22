@@ -1,7 +1,8 @@
-from flask import Flask
+from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_security import Security, SQLAlchemyUserDatastore, UserMixin, RoleMixin, auth_required, current_user
 from flask_security.utils import hash_password
+from flask_cors import CORS
 from datetime import datetime, date
 
 app = Flask(__name__)
@@ -20,7 +21,7 @@ app.config['SECURITY_INCLUDE_AUTH_TOKEN_IN_API'] = True
 
 
 db = SQLAlchemy(app)
-
+CORS(app)
 
 
 
@@ -109,6 +110,36 @@ class Department(db.Model):
 user_datastore = SQLAlchemyUserDatastore(db, User, Role)
 security = Security(app, user_datastore)
 
+# Routes
+@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    if user_datastore.find_user(email=data['email']):
+        return jsonify({"message": "User already exists"}), 400
+    
+    if user_datastore.find_user(username=data['username']):
+        return jsonify({"message": "Username already taken"}), 400
+
+    user = user_datastore.create_user(
+        email=data['email'],
+        username=data['username'],
+        password=hash_password(data['password'])
+    )
+    patient_role = user_datastore.find_role('patient')
+    user_datastore.add_role_to_user(user, patient_role)
+    patient = Patient(user_id=user.id)  # Create associated Patient record
+    db.session.add(patient)
+    db.session.commit()
+    return jsonify({"message": "User registered successfully"}), 201
+
+@app.route('/api/current-user-details', methods=['GET'])
+@auth_required('token')
+def current_user_details():
+    return jsonify({
+        "current_user_email": current_user.email, 
+        "current_user_username": current_user.username,
+        "current_user_roles": [role.name for role in current_user.roles]
+    })
 
 
 
