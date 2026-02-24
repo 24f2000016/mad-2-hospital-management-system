@@ -1,3 +1,213 @@
+<script setup>
+import { ref, onMounted } from 'vue';
+
+const patients = ref([]);
+const loading = ref(true);
+const error = ref(null);
+const debugInfo = ref('');
+
+function navigateToAddDepartment() {
+    window.location.href = '/add-department';
+}
+
+function navigateToAddDoctor() {
+    window.location.href = '/add-doctor';
+}
+
+onMounted(() => {
+    const token = localStorage.getItem('auth_token');
+    
+    if (!token) {
+        error.value = "No authentication token found. Please login first.";
+        loading.value = false;
+        return;
+    }
+
+    debugInfo.value = `Token found: ${token.substring(0, 20)}...`;
+
+    fetch('http://localhost:5000/api/admin-dashboard', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authentication-Token': token
+        }
+    })
+        .then(response => {
+            debugInfo.value += `\nResponse status: ${response.status}`;
+            console.log('Response status:', response.status);
+            return response.text().then(text => ({ status: response.status, text }));
+        })
+        .then(({ status, text }) => {
+            debugInfo.value += `\nResponse length: ${text.length}`;
+            console.log('Response text:', text);
+            
+            if (!text) {
+                throw new Error('Empty response from server');
+            }
+
+            if (status !== 200) {
+                error.value = `Server error (${status}): ${text.substring(0, 200)}`;
+                loading.value = false;
+                return;
+            }
+
+            try {
+                const data = JSON.parse(text);
+                patients.value = data.patients || [];
+                loading.value = false;
+            } catch (e) {
+                console.error('JSON parse error:', e);
+                error.value = `Invalid JSON response: ${text.substring(0, 100)}`;
+                debugInfo.value += `\nJSON parse failed: ${e.message}`;
+                loading.value = false;
+            }
+        })
+        .catch(err => {
+            error.value = err.message || "Error fetching patients";
+            console.error("Error fetching patients:", err);
+            loading.value = false;
+        });
+});
+</script>
+
 <template>
-    <h1>Welcome to Admin Dashboard</h1>
+    <div class="admin-dashboard">
+        <h2>Admin Dashboard - Patient List</h2>
+        
+        <div v-if="loading" class="loading">
+            <p>Loading patients...</p>
+        </div>
+        
+        <div v-if="error" class="error">
+            <p>{{ error }}</p>
+            <div v-if="debugInfo" class="debug-info">
+                <strong>Debug Info:</strong>
+                <pre>{{ debugInfo }}</pre>
+            </div>
+        </div>
+        
+        <div v-if="!loading && !error" class="patients-container">
+            <div v-if="patients.length === 0" class="no-patients">
+                <p>No patients registered yet.</p>
+            </div>
+            
+            <div v-else class="table-wrapper">
+                <table class="patients-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Full Name</th>
+                            <th>Email</th>
+                            <th>Age</th>
+                            <th>Sex</th>
+                            <th>Contact Number</th>
+                            <th>Appointments</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="patient in patients" :key="patient.id">
+                            <td>{{ patient.id }}</td>
+                            <td>{{ patient.full_name || 'N/A' }}</td>
+                            <td>{{ patient.user_email || 'N/A' }}</td>
+                            <td>{{ patient.age || 'N/A' }}</td>
+                            <td>{{ patient.sex || 'N/A' }}</td>
+                            <td>{{ patient.contact_number || 'N/A' }}</td>
+                            <td>{{ patient.appointment_count }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div>
+            <button @click="navigateToAddDepartment">Add Department</button>
+            <button @click="navigateToAddDoctor">Add Doctor</button>
+        </div>
+    </div>
 </template>
+
+<style scoped>
+.admin-dashboard {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+h2 {
+    color: #333;
+    margin-bottom: 20px;
+}
+
+.loading, .error {
+    text-align: center;
+    padding: 20px;
+    font-size: 16px;
+}
+
+.error {
+    color: #d32f2f;
+    background-color: #ffebee;
+    border: 1px solid #d32f2f;
+    border-radius: 4px;
+}
+
+.debug-info {
+    margin-top: 15px;
+    text-align: left;
+    background-color: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 4px;
+    padding: 10px;
+}
+
+.debug-info pre {
+    margin: 10px 0 0 0;
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 3px;
+    overflow-x: auto;
+    font-size: 12px;
+}
+
+.no-patients {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+    font-size: 16px;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.patients-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: white;
+}
+
+.patients-table thead {
+    background-color: #1976d2;
+    color: white;
+}
+
+.patients-table th {
+    padding: 15px;
+    text-align: left;
+    font-weight: 600;
+}
+
+.patients-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.patients-table tbody tr:hover {
+    background-color: #f5f5f5;
+}
+
+.patients-table tbody tr:last-child td {
+    border-bottom: none;
+}
+</style>

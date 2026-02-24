@@ -141,6 +141,42 @@ def current_user_details():
         "current_user_roles": [role.name for role in current_user.roles]
     })
 
+@app.route('/api/admin-dashboard', methods=['GET'])
+@auth_required('token')
+def admin_dashboard():
+    # Check if current user is admin
+    admin_role = user_datastore.find_role('admin')
+    if admin_role not in current_user.roles:
+        return jsonify({"message": "Unauthorized access"}), 403
+    
+    patients = Patient.query.all()
+    patients_data = []
+    
+    for patient in patients:
+        # Calculate age from date of birth
+        age = None
+        if patient.dob:
+            today = date.today()
+            age = today.year - patient.dob.year - ((today.month, today.day) < (patient.dob.month, patient.dob.day))
+        
+        # Count appointments
+        appointment_count = len(patient.appointments) if patient.appointments else 0
+        
+        patients_data.append({
+            'id': patient.id,
+            'first_name': patient.first_name,
+            'last_name': patient.last_name,
+            'full_name': f"{patient.first_name or ''} {patient.last_name or ''}".strip(),
+            'age': age,
+            'sex': patient.sex,
+            'contact_number': patient.contact_number,
+            'dob': str(patient.dob) if patient.dob else None,
+            'appointment_count': appointment_count,
+            'user_email': patient.user.email if patient.user else None
+        })
+    
+    return jsonify({"patients": patients_data}), 200
+
 
 
 
