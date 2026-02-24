@@ -181,6 +181,87 @@ def admin_dashboard():
 
 
 
+@app.route('/api/doctor', methods=['POST', 'GET'])
+@auth_required('token')
+def manage_doctors():
+    # Check if current user is admin
+    admin_role = user_datastore.find_role('admin')
+    
+
+    if request.method == 'POST':
+        if admin_role not in current_user.roles:
+            return jsonify({"message": "Unauthorized access"}), 403
+        data = request.get_json()
+
+        user = user_datastore.create_user(
+            email=data.get('doctor_email'),
+            username=data.get('doctor_username'),
+            password=hash_password(data.get('doctor_password'))
+        )
+        user_datastore.add_role_to_user(user, user_datastore.find_role('doctor'))
+
+        doctor = Doctor(
+            user_id=user.id,
+            full_name=data.get('doctor_full_name', ''),
+            department_id=data.get('doctor_department_id'),
+            experience=data.get('doctor_experience', '')
+        )
+
+        db.session.add(doctor)
+        db.session.commit()
+        return jsonify({"message": "Doctor added successfully"}), 201
+    
+    elif request.method == 'GET':
+        doctors = Doctor.query.all()
+        doctors_data = []
+        for doctor in doctors:
+            doctors_data.append({
+                'id': doctor.id,
+                'full_name': doctor.full_name,
+                'department': doctor.department.name if doctor.department else None,
+                'experience': doctor.experience,
+                'email': doctor.user.email if doctor.user else None
+            })
+        return jsonify({"doctors": doctors_data}), 200
+
+
+
+
+
+
+@app.route('/api/departments', methods=['GET', 'POST'])
+@auth_required('token')
+def manage_departments():
+    # Check if current user is admin
+    admin_role = user_datastore.find_role('admin')
+    if admin_role not in current_user.roles:
+        return jsonify({"message": "Unauthorized access"}), 403
+
+    if request.method == 'GET':
+        departments = Department.query.all()
+        departments_data = [{
+            'id': dept.id, 
+            'name': dept.name, 
+            'description': dept.description} for dept in departments]
+        return jsonify({"departments": departments_data}), 200
+
+    elif request.method == 'POST':
+        data = request.get_json()
+        if not data.get('name'):
+            return jsonify({"message": "Department name is required"}), 400
+        
+        if Department.query.filter_by(name=data['name']).first():
+            return jsonify({"message": "Department already exists"}), 400
+
+        new_department = Department(
+            name=data['name'],
+            description=data.get('description')
+        )
+        db.session.add(new_department)
+        db.session.commit()
+        return jsonify({"message": "Department added successfully"}), 201
+
+
 
 
 # Setup Database and Create admin User
