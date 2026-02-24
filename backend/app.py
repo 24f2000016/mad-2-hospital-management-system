@@ -264,6 +264,41 @@ def manage_departments():
 
 
 
+@app.route('/api/profile', methods=['PUT'])
+@auth_required('token')
+def profile():
+    data = request.get_json()
+
+    # Update user details
+    if data.get('username'):
+        current_user.username = data.get('username', current_user.username)
+    patient_role = user_datastore.find_role('patient')
+    user_datastore.add_role_to_user(current_user, patient_role)
+    if data.get('email'):
+        current_user.email = data.get('email', current_user.email)
+    if data.get('password'):
+        current_user.password = hash_password(data.get('password'))
+
+    patient = current_user.patient or Patient(user_id=current_user.id)
+    
+    if data.get('first_name'):
+        patient.first_name = data.get('first_name', patient.first_name)
+    if data.get('last_name'):
+        patient.last_name = data.get('last_name', patient.last_name)
+    if data.get('sex'):
+        patient.sex = data.get('sex', patient.sex)
+    if data.get('dob'):
+        patient.dob = datetime.strptime(data.get('dob', patient.dob), '%Y-%m-%d').date()
+    if data.get('contact_number'):
+        patient.contact_number = data.get('contact_number', patient.contact_number)
+    db.session.add(patient)
+    db.session.commit()
+    return jsonify({"message": "Profile updated successfully"})
+
+
+
+
+
 # Setup Database and Create admin User
 with app.app_context():
     db.create_all()
