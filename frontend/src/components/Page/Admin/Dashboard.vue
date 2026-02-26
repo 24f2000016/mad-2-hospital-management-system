@@ -18,6 +18,10 @@ function navigateToAddDoctor() {
     window.location.href = '/add-doctor';
 }
 
+function navigateToAllDoctors() {
+    window.location.href = '/admin/all-doctors';
+}
+
 onMounted(() => {
     const token = localStorage.getItem('auth_token');
     if (!token) {
@@ -99,11 +103,19 @@ onMounted(() => {
             <p>Loading patients...</p>
         </div>
         
-        <div>
-            Total patients: {{ patients.length }}<br>
-            Total doctors: {{ doctors.length }}<br>
-            Total departments: {{ departments.length }}<br>
-            Total booked appointments: {{ appointments.length }}
+        <div class="stats-container">
+            <div class="stat-item">
+                <span>Total patients: {{ patients.length }}</span>
+            </div>
+            <div class="stat-item clickable" @click="navigateToAllDoctors">
+                <span>Total doctors: <strong>{{ doctors.length }}</strong></span>
+            </div>
+            <div class="stat-item">
+                <span>Total departments: {{ departments.length }}</span>
+            </div>
+            <div class="stat-item">
+                <span>Total appointments: {{ appointments.length }}</span>
+            </div>
         </div>
         
         <div v-if="!loading && !error" class="patients-container">
@@ -229,5 +241,34 @@ h2 {
 
 .patients-table tbody tr:last-child td {
     border-bottom: none;
+}
+
+.stats-container {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.stat-item {
+    padding: 15px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    border-left: 4px solid #1976d2;
+}
+
+.stat-item.clickable {
+    cursor: pointer;
+    background-color: #e3f2fd;
+    transition: all 0.3s ease;
+}
+
+.stat-item.clickable:hover {
+    background-color: #bbdefb;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.stat-item strong {
+    color: #1976d2;
 }
 </style>

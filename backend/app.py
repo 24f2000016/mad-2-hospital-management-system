@@ -269,8 +269,36 @@ def manage_doctors():
             })
         return jsonify({"doctors": doctors_data}), 200
 
-
-
+@app.route('/api/doctor/<int:doctor_id>', methods=['PUT'])
+@auth_required('token')
+def update_doctor(doctor_id):
+    # Check if current user is admin
+    admin_role = user_datastore.find_role('admin')
+    if admin_role not in current_user.roles:
+        return jsonify({"message": "Unauthorized access"}), 403
+    
+    doctor = Doctor.query.get(doctor_id)
+    if not doctor:
+        return jsonify({"message": "Doctor not found"}), 404
+    
+    data = request.get_json()
+    
+    # Update doctor's personal info
+    if data.get('full_name'):
+        doctor.full_name = data.get('full_name')
+    if data.get('experience'):
+        doctor.experience = data.get('experience')
+    if data.get('department_id'):
+        doctor.department_id = data.get('department_id')
+    
+    # Update user's email and username if provided
+    if data.get('email'):
+        doctor.user.email = data.get('email')
+    if data.get('username'):
+        doctor.user.username = data.get('username')
+    
+    db.session.commit()
+    return jsonify({"message": "Doctor updated successfully"}), 200
 
 
 
