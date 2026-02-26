@@ -26,6 +26,10 @@ function navigateToAllPatients() {
     window.location.href = '/admin/all-patients';
 }
 
+function navigateToAllDepartments() {
+    window.location.href = '/admin/all-departments';
+}
+
 onMounted(() => {
     const token = localStorage.getItem('auth_token');
     if (!token) {
@@ -114,8 +118,8 @@ onMounted(() => {
             <div class="stat-item clickable" @click="navigateToAllDoctors">
                 <span>Total doctors: <strong>{{ doctors.length }}</strong></span>
             </div>
-            <div class="stat-item">
-                <span>Total departments: {{ departments.length }}</span>
+            <div class="stat-item clickable" @click="navigateToAllDepartments">
+                <span>Total departments: <strong>{{ departments.length }}</strong></span>
             </div>
             <div class="stat-item">
                 <span>Total appointments: {{ appointments.length }}</span>
