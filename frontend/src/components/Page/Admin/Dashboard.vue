@@ -120,7 +120,10 @@ onMounted(() => {
                 <span>Total patients: <strong>{{ patients.length }}</strong></span>
             </div>
             <div class="stat-item clickable" @click="navigateToAllDoctors">
-                <span>Total doctors: <strong>{{ doctors.length }}</strong></span>
+                <div class="stat-header">
+                    <span>Total doctors: <strong>{{ doctors.length }}</strong></span>
+                    <button class="add-btn" @click.stop="navigateToAddDoctor" title="Add Doctor">+</button>
+                </div>
             </div>
             <div class="stat-item clickable" @click="navigateToAllDepartments">
                 <div class="stat-header">
@@ -137,9 +140,6 @@ onMounted(() => {
             <div v-if="patients.length === 0" class="no-patients">
                 <p>No patients registered yet.</p>
             </div>
-        </div>
-        <div>
-            <button @click="navigateToAddDoctor">Add Doctor</button>
         </div>
     </div>
 </template>
