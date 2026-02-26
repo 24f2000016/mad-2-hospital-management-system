@@ -298,6 +298,52 @@ def profile():
 
 
 
+@app.route('/api/appointment', methods=['POST', 'GET'])
+@auth_required('token')
+def manage_appointments():
+    if request.method == 'POST':
+        data = request.get_json()
+        patient = current_user.patient
+        if not patient:
+            return jsonify({"message": "Current user is not a patient"}), 400
+        
+        doctor = Doctor.query.get(data.get('doctor_id'))
+        if not doctor:
+            return jsonify({"message": "Doctor not found"}), 404
+
+        new_appointment = Appointment(
+            patient_id=patient.id,
+            doctor_id=doctor.id,
+            appointment_date=datetime.strptime(data.get('appointment_date'), '%Y-%m-%d'),
+            appointment_time_slot=data.get('appointment_time_slot'),
+            status='scheduled'
+        )
+        db.session.add(new_appointment)
+        db.session.commit()
+        return jsonify({"message": "Appointment scheduled successfully"}), 201
+    
+    elif request.method == 'GET':
+        
+        all_appointments = Appointment.query.all()
+        appointments_data = []
+        for appt in all_appointments:
+            appointments_data.append({
+                'id': appt.id,
+                'doctor_id': appt.doctor_id,
+                'patient_id': appt.patient_id,
+                'patient_name': f"{appt.patient.first_name or ''} {appt.patient.last_name or ''}".strip() if appt.patient else None,
+                'doctor_name': appt.doctor.full_name if appt.doctor else None,
+                'doctor_email': appt.doctor.user.email if appt.doctor and appt.doctor.user else None,
+                'department': appt.doctor.department.name if appt.doctor and appt.doctor.department else None,
+                'appointment_date': str(appt.appointment_date),
+                'appointment_time_slot': appt.appointment_time_slot,
+                'status': appt.status
+            })
+        return jsonify({"appointments": appointments_data}), 200
+
+
+
+
 
 # Setup Database and Create admin User
 with app.app_context():

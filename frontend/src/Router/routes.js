@@ -8,6 +8,9 @@ import StaffLogin from "@/components/Page/General/StaffLogin.vue";
 import AddDoctor from "@/components/Page/Admin/AddDoctor.vue";
 import AddDepartment from "@/components/Page/Admin/AddDepartment.vue";
 import PatientProfile from "@/components/Page/Patient/Profile.vue";
+import AllDoctors from "@/components/Page/Patient/AllDoctors.vue";
+import ScheduleAppointment from "@/components/Page/Patient/ScheduleAppointment.vue";
+
 
 import { createRouter, createWebHistory } from "vue-router";
 
@@ -22,8 +25,10 @@ const router = createRouter({
     { path: "/doctor-dashboard", component: DoctorDashboard },
     { path: "/admin-dashboard", component: AdminDashboard },
     { path: '/add-doctor', component: AddDoctor },
-    {path: "/add-department", component:AddDepartment},
-    {path: "/dashboard/profile", component:PatientProfile},
+    { path: "/add-department", component:AddDepartment },
+    { path: "/dashboard/profile", component:PatientProfile },
+    { path: "/dashboard/schedule/doctor", component:AllDoctors },
+    { path: "/dashboard/schedule/doctor/appointment", component:ScheduleAppointment },
 
   ],
 });
