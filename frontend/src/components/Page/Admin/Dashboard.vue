@@ -1,7 +1,11 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 
+
 const patients = ref([]);
+const doctors = ref([]);
+const departments = ref([]);
+const appointments = ref([]);
 const loading = ref(true);
 const error = ref(null);
 const debugInfo = ref('');
@@ -16,15 +20,12 @@ function navigateToAddDoctor() {
 
 onMounted(() => {
     const token = localStorage.getItem('auth_token');
-    
     if (!token) {
         error.value = "No authentication token found. Please login first.";
         loading.value = false;
         return;
     }
-
     debugInfo.value = `Token found: ${token.substring(0, 20)}...`;
-
     fetch('http://localhost:5000/api/admin-dashboard', {
         method: 'GET',
         headers: {
@@ -34,37 +35,57 @@ onMounted(() => {
     })
         .then(response => {
             debugInfo.value += `\nResponse status: ${response.status}`;
-            console.log('Response status:', response.status);
             return response.text().then(text => ({ status: response.status, text }));
         })
         .then(({ status, text }) => {
             debugInfo.value += `\nResponse length: ${text.length}`;
-            console.log('Response text:', text);
-            
             if (!text) {
                 throw new Error('Empty response from server');
             }
-
             if (status !== 200) {
                 error.value = `Server error (${status}): ${text.substring(0, 200)}`;
                 loading.value = false;
                 return;
             }
-
             try {
                 const data = JSON.parse(text);
                 patients.value = data.patients || [];
+                doctors.value = Array.isArray(data.doctors) ? data.doctors : [];
+                // If departments array is missing or empty, try to extract unique department names from patients
+                if (Array.isArray(data.departments) && data.departments.length > 0) {
+                    departments.value = data.departments;
+                } else if (Array.isArray(data.patients)) {
+                    // Fallback: get unique department names from patients
+                    const deptSet = new Set();
+                    data.patients.forEach(p => {
+                        if (p.department_name) deptSet.add(p.department_name);
+                        if (Array.isArray(p.departments)) {
+                            p.departments.forEach(d => deptSet.add(d));
+                        }
+                    });
+                    departments.value = Array.from(deptSet);
+                } else {
+                    departments.value = [];
+                }
+                // If appointments array is missing or empty, sum appointment_count from patients
+                if (Array.isArray(data.appointments) && data.appointments.length > 0) {
+                    appointments.value = data.appointments;
+                } else if (Array.isArray(data.patients)) {
+                    // Fallback: sum appointment_count from all patients
+                    const total = data.patients.reduce((sum, p) => sum + (p.appointment_count || 0), 0);
+                    appointments.value = Array(total).fill({}); // Just for count
+                } else {
+                    appointments.value = [];
+                }
                 loading.value = false;
             } catch (e) {
-                console.error('JSON parse error:', e);
                 error.value = `Invalid JSON response: ${text.substring(0, 100)}`;
                 debugInfo.value += `\nJSON parse failed: ${e.message}`;
                 loading.value = false;
             }
         })
         .catch(err => {
-            error.value = err.message || "Error fetching patients";
-            console.error("Error fetching patients:", err);
+            error.value = err.message || "Error fetching dashboard data";
             loading.value = false;
         });
 });
@@ -78,12 +99,11 @@ onMounted(() => {
             <p>Loading patients...</p>
         </div>
         
-        <div v-if="error" class="error">
-            <p>{{ error }}</p>
-            <div v-if="debugInfo" class="debug-info">
-                <strong>Debug Info:</strong>
-                <pre>{{ debugInfo }}</pre>
-            </div>
+        <div>
+            Total patients: {{ patients.length }}<br>
+            Total doctors: {{ doctors.length }}<br>
+            Total departments: {{ departments.length }}<br>
+            Total booked appointments: {{ appointments.length }}
         </div>
         
         <div v-if="!loading && !error" class="patients-container">

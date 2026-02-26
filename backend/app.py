@@ -149,6 +149,7 @@ def admin_dashboard():
     if admin_role not in current_user.roles:
         return jsonify({"message": "Unauthorized access"}), 403
     
+    # Get patients data
     patients = Patient.query.all()
     patients_data = []
     
@@ -175,7 +176,51 @@ def admin_dashboard():
             'user_email': patient.user.email if patient.user else None
         })
     
-    return jsonify({"patients": patients_data}), 200
+    # Get doctors data
+    doctors = Doctor.query.all()
+    doctors_data = []
+    
+    for doctor in doctors:
+        doctors_data.append({
+            'id': doctor.id,
+            'full_name': doctor.full_name,
+            'department_id': doctor.department_id,
+            'department_name': doctor.department.name if doctor.department else None,
+            'experience': doctor.experience,
+            'user_email': doctor.user.email if doctor.user else None
+        })
+    
+    # Get departments data
+    departments = Department.query.all()
+    departments_data = []
+    
+    for dept in departments:
+        departments_data.append({
+            'id': dept.id,
+            'name': dept.name,
+            'description': dept.description
+        })
+    
+    # Get appointments data
+    appointments = Appointment.query.all()
+    appointments_data = []
+    
+    for appt in appointments:
+        appointments_data.append({
+            'id': appt.id,
+            'patient_id': appt.patient_id,
+            'doctor_id': appt.doctor_id,
+            'appointment_date': str(appt.appointment_date),
+            'appointment_time_slot': appt.appointment_time_slot,
+            'status': appt.status
+        })
+    
+    return jsonify({
+        "patients": patients_data,
+        "doctors": doctors_data,
+        "departments": departments_data,
+        "appointments": appointments_data
+    }), 200
 
 
 
