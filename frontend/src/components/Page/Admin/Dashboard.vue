@@ -22,6 +22,10 @@ function navigateToAllDoctors() {
     window.location.href = '/admin/all-doctors';
 }
 
+function navigateToAllPatients() {
+    window.location.href = '/admin/all-patients';
+}
+
 onMounted(() => {
     const token = localStorage.getItem('auth_token');
     if (!token) {
@@ -104,8 +108,8 @@ onMounted(() => {
         </div>
         
         <div class="stats-container">
-            <div class="stat-item">
-                <span>Total patients: {{ patients.length }}</span>
+            <div class="stat-item clickable" @click="navigateToAllPatients">
+                <span>Total patients: <strong>{{ patients.length }}</strong></span>
             </div>
             <div class="stat-item clickable" @click="navigateToAllDoctors">
                 <span>Total doctors: <strong>{{ doctors.length }}</strong></span>
@@ -121,33 +125,6 @@ onMounted(() => {
         <div v-if="!loading && !error" class="patients-container">
             <div v-if="patients.length === 0" class="no-patients">
                 <p>No patients registered yet.</p>
-            </div>
-            
-            <div v-else class="table-wrapper">
-                <table class="patients-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Full Name</th>
-                            <th>Email</th>
-                            <th>Age</th>
-                            <th>Sex</th>
-                            <th>Contact Number</th>
-                            <th>Appointments</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="patient in patients" :key="patient.id">
-                            <td>{{ patient.id }}</td>
-                            <td>{{ patient.full_name || 'N/A' }}</td>
-                            <td>{{ patient.user_email || 'N/A' }}</td>
-                            <td>{{ patient.age || 'N/A' }}</td>
-                            <td>{{ patient.sex || 'N/A' }}</td>
-                            <td>{{ patient.contact_number || 'N/A' }}</td>
-                            <td>{{ patient.appointment_count }}</td>
-                        </tr>
-                    </tbody>
-                </table>
             </div>
         </div>
         <div>
