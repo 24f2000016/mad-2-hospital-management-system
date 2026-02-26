@@ -123,7 +123,10 @@ onMounted(() => {
                 <span>Total doctors: <strong>{{ doctors.length }}</strong></span>
             </div>
             <div class="stat-item clickable" @click="navigateToAllDepartments">
-                <span>Total departments: <strong>{{ departments.length }}</strong></span>
+                <div class="stat-header">
+                    <span>Total departments: <strong>{{ departments.length }}</strong></span>
+                    <button class="add-btn" @click.stop="navigateToAddDepartment" title="Add Department">+</button>
+                </div>
             </div>
             <div class="stat-item clickable" @click="navigateToAllAppointments">
                 <span>Total appointments: <strong>{{ appointments.length }}</strong></span>
@@ -136,7 +139,6 @@ onMounted(() => {
             </div>
         </div>
         <div>
-            <button @click="navigateToAddDepartment">Add Department</button>
             <button @click="navigateToAddDoctor">Add Doctor</button>
         </div>
     </div>
@@ -255,5 +257,33 @@ h2 {
 
 .stat-item strong {
     color: #1976d2;
+}
+
+.stat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.add-btn {
+    background-color: #1976d2;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.add-btn:hover {
+    background-color: #1565c0;
 }
 </style>
