@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 
 const doctors = ref([]);
 const departments = ref([]);
@@ -7,6 +7,11 @@ const loading = ref(true);
 const error = ref(null);
 const editingDoctor = ref(null);
 const showEditForm = ref(false);
+
+// Search filters
+const searchName = ref('');
+const searchEmail = ref('');
+const searchDepartment = ref('');
 
 const editForm = ref({
     full_name: '',
@@ -62,6 +67,17 @@ async function fetchDepartments() {
         console.error('Failed to fetch departments:', err);
     }
 }
+
+// Computed property for filtered doctors
+const filteredDoctors = computed(() => {
+    return doctors.value.filter(doctor => {
+        const nameMatch = doctor.full_name.toLowerCase().includes(searchName.value.toLowerCase());
+        const emailMatch = doctor.email.toLowerCase().includes(searchEmail.value.toLowerCase());
+        const departmentMatch = searchDepartment.value === '' || doctor.department === searchDepartment.value;
+        
+        return nameMatch && emailMatch && departmentMatch;
+    });
+});
 
 function openEditForm(doctor) {
     editingDoctor.value = doctor;
@@ -125,6 +141,37 @@ function goBack() {
             <button @click="goBack" class="back-btn">Back to Dashboard</button>
         </div>
         
+        <!-- Search and Filter Section -->
+        <div class="filters-section">
+            <div class="filter-group">
+                <label>Search by Name:</label>
+                <input 
+                    v-model="searchName" 
+                    type="text" 
+                    placeholder="Enter doctor name..."
+                    class="filter-input"
+                />
+            </div>
+            <div class="filter-group">
+                <label>Search by Email:</label>
+                <input 
+                    v-model="searchEmail" 
+                    type="text" 
+                    placeholder="Enter email..."
+                    class="filter-input"
+                />
+            </div>
+            <div class="filter-group">
+                <label>Filter by Specialization:</label>
+                <select v-model="searchDepartment" class="filter-input">
+                    <option value="">All Departments</option>
+                    <option v-for="dept in departments" :key="dept.id" :value="dept.name">
+                        {{ dept.name }}
+                    </option>
+                </select>
+            </div>
+        </div>
+        
         <div v-if="loading" class="loading">
             <p>Loading doctors...</p>
         </div>
@@ -134,8 +181,9 @@ function goBack() {
         </div>
         
         <div v-if="!loading && !error" class="doctors-container">
-            <div v-if="doctors.length === 0" class="no-doctors">
-                <p>No doctors found.</p>
+            <div v-if="filteredDoctors.length === 0" class="no-doctors">
+                <p v-if="doctors.length === 0">No doctors found.</p>
+                <p v-else>No doctors match your search criteria.</p>
             </div>
             
             <div v-else class="table-wrapper">
@@ -151,7 +199,7 @@ function goBack() {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="doctor in doctors" :key="doctor.id">
+                        <tr v-for="doctor in filteredDoctors" :key="doctor.id">
                             <td>{{ doctor.id }}</td>
                             <td>{{ doctor.full_name }}</td>
                             <td>{{ doctor.email }}</td>
@@ -237,6 +285,46 @@ function goBack() {
 
 .back-btn:hover {
     background-color: #616161;
+}
+
+/* Filter Section Styles */
+.filters-section {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 25px;
+    flex-wrap: wrap;
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 200px;
+}
+
+.filter-group label {
+    margin-bottom: 5px;
+    color: #333;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.filter-input {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    background-color: white;
+}
+
+.filter-input:focus {
+    outline: none;
+    border-color: #1976d2;
+    box-shadow: 0 0 3px rgba(25, 118, 210, 0.5);
 }
 
 .loading, .error {
