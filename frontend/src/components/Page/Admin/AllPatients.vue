@@ -4,6 +4,24 @@ import { ref, onMounted } from 'vue';
 const patients = ref([]);
 const loading = ref(true);
 const error = ref(null);
+const filterName = ref("");
+const filterEmail = ref("");
+const filterContact = ref("");
+
+import { computed } from 'vue';
+const filteredPatients = computed(() => {
+    const nameFilter = filterName.value.trim().toLowerCase();
+    const emailFilter = filterEmail.value.trim().toLowerCase();
+    const contactFilter = filterContact.value.trim().toLowerCase();
+    
+    return patients.value.filter(p => {
+        const matchName = !nameFilter || (p.full_name && p.full_name.toLowerCase().includes(nameFilter));
+        const matchEmail = !emailFilter || (p.user_email && p.user_email.toLowerCase().includes(emailFilter));
+        const matchContact = !contactFilter || (p.contact_number && String(p.contact_number).toLowerCase().includes(contactFilter));
+        
+        return matchName && matchEmail && matchContact;
+    });
+});
 
 function goBack() {
     window.location.href = '/admin-dashboard';
@@ -48,6 +66,27 @@ onMounted(() => {
             <button @click="goBack" class="back-btn">← Back to Dashboard</button>
         </div>
 
+        <div class="filter-bar">
+            <input
+                v-model="filterName"
+                type="text"
+                placeholder="Filter by name"
+                class="filter-input"
+            />
+            <input
+                v-model="filterEmail"
+                type="text"
+                placeholder="Filter by email"
+                class="filter-input"
+            />
+            <input
+                v-model="filterContact"
+                type="text"
+                placeholder="Filter by contact number"
+                class="filter-input"
+            />
+        </div>
+
         <div v-if="loading" class="loading">
             <p>Loading patients...</p>
         </div>
@@ -56,8 +95,8 @@ onMounted(() => {
             <p>{{ error }}</p>
         </div>
 
-        <div v-else-if="patients.length === 0" class="no-patients">
-            <p>No patients registered yet.</p>
+        <div v-else-if="filteredPatients.length === 0" class="no-patients">
+            <p>No patients found for the given filters.</p>
         </div>
 
         <div v-else class="table-wrapper">
@@ -75,7 +114,7 @@ onMounted(() => {
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="patient in patients" :key="patient.id">
+                    <tr v-for="patient in filteredPatients" :key="patient.id">
                         <td>{{ patient.id }}</td>
                         <td>{{ patient.full_name || 'N/A' }}</td>
                         <td>{{ patient.user_email || 'N/A' }}</td>
@@ -96,6 +135,27 @@ onMounted(() => {
     padding: 20px;
     max-width: 1400px;
     margin: 0 auto;
+}
+
+.filter-bar {
+    margin-bottom: 20px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.filter-input {
+    padding: 8px 14px;
+    border: 1px solid #bdbdbd;
+    border-radius: 4px;
+    font-size: 15px;
+    flex: 1;
+    min-width: 200px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.filter-input:focus {
+    border-color: #1976d2;
 }
 
 .header {
