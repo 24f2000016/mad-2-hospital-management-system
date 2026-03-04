@@ -7,6 +7,11 @@ const error = ref(null);
 const filterName = ref("");
 const filterEmail = ref("");
 const filterContact = ref("");
+const showEditModal = ref(false);
+const editingPatient = ref(null);
+const editFormData = ref({});
+const editLoading = ref(false);
+const editError = ref(null);
 
 import { computed } from 'vue';
 const filteredPatients = computed(() => {
@@ -25,6 +30,66 @@ const filteredPatients = computed(() => {
 
 function goBack() {
     window.location.href = '/admin-dashboard';
+}
+
+function openEditModal(patient) {
+    editingPatient.value = patient;
+    editFormData.value = {
+        id: patient.id,
+        full_name: patient.full_name || '',
+        user_email: patient.user_email || '',
+        dob: patient.dob || '',
+        sex: patient.sex || '',
+        contact_number: patient.contact_number || ''
+    };
+    editError.value = null;
+    showEditModal.value = true;
+}
+
+function closeEditModal() {
+    showEditModal.value = false;
+    editingPatient.value = null;
+    editFormData.value = {};
+    editError.value = null;
+}
+
+function savePatientDetails() {
+    editLoading.value = true;
+    editError.value = null;
+    
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+        editError.value = "No authentication token found.";
+        editLoading.value = false;
+        return;
+    }
+
+    fetch(`http://localhost:5000/api/patients/${editFormData.value.id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authentication-Token': token
+        },
+        body: JSON.stringify(editFormData.value)
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const index = patients.value.findIndex(p => p.id === editFormData.value.id);
+            if (index !== -1) {
+                patients.value[index] = { ...patients.value[index], ...editFormData.value };
+            }
+            closeEditModal();
+            editLoading.value = false;
+        })
+        .catch(err => {
+            editError.value = err.message || "Error updating patient details";
+            editLoading.value = false;
+        });
 }
 
 onMounted(() => {
@@ -111,6 +176,7 @@ onMounted(() => {
                         <th>Sex</th>
                         <th>Contact Number</th>
                         <th>Appointments</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -123,9 +189,59 @@ onMounted(() => {
                         <td>{{ patient.sex || 'N/A' }}</td>
                         <td>{{ patient.contact_number || 'N/A' }}</td>
                         <td>{{ patient.appointment_count }}</td>
+                        <td>
+                            <button @click="openEditModal(patient)" class="edit-btn">Edit</button>
+                        </td>
                     </tr>
                 </tbody>
             </table>
+        </div>
+
+        <div v-if="showEditModal" class="modal-overlay" @click="closeEditModal">
+            <div class="modal" @click.stop>
+                <div class="modal-header">
+                    <h3>Edit Patient Details</h3>
+                    <button @click="closeEditModal" class="close-btn">×</button>
+                </div>
+                <div class="modal-body">
+                    <div v-if="editError" class="edit-error">{{ editError }}</div>
+                    <form @submit.prevent="savePatientDetails">
+                        <div class="form-group">
+                            <label>Full Name</label>
+                            <input v-model="editFormData.full_name" type="text" required />
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input v-model="editFormData.user_email" type="email" required />
+                        </div>
+                        <div class="form-group">
+                            <label>Date of Birth</label>
+                            <input v-model="editFormData.dob" type="date" />
+                        </div>
+                        <div class="form-group">
+                            <label>Sex</label>
+                            <select v-model="editFormData.sex">
+                                <option value="">Select</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Contact Number</label>
+                            <input v-model="editFormData.contact_number" type="text" />
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="save-btn" :disabled="editLoading">
+                                {{ editLoading ? 'Saving...' : 'Save' }}
+                            </button>
+                            <button type="button" class="cancel-btn" @click="closeEditModal" :disabled="editLoading">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 </template>
@@ -242,6 +358,168 @@ h2 {
 
 .patients-table tbody tr:last-child td {
     border-bottom: none;
+}
+
+.edit-btn {
+    padding: 6px 12px;
+    background-color: #1976d2;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background-color 0.3s ease;
+}
+
+.edit-btn:hover {
+    background-color: #1565c0;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #e0e0e0;
+    background-color: #f5f5f5;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: #333;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    color: #666;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-btn:hover {
+    color: #333;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.edit-error {
+    background-color: #ffebee;
+    color: #d32f2f;
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    border: 1px solid #d32f2f;
+}
+
+.form-group {
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #333;
+    font-size: 14px;
+}
+
+.form-group input,
+.form-group select {
+    padding: 8px 12px;
+    border: 1px solid #bdbdbd;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #1976d2;
+    box-shadow: 0 0 4px rgba(25, 118, 210, 0.2);
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    justify-content: flex-end;
+}
+
+.save-btn {
+    padding: 10px 20px;
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+}
+
+.save-btn:hover:not(:disabled) {
+    background-color: #45a049;
+}
+
+.save-btn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+.cancel-btn {
+    padding: 10px 20px;
+    background-color: #9e9e9e;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+}
+
+.cancel-btn:hover:not(:disabled) {
+    background-color: #757575;
+}
+
+.cancel-btn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
 }
 
 @media (max-width: 768px) {

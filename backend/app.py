@@ -302,6 +302,44 @@ def update_doctor(doctor_id):
 
 
 
+@app.route('/api/patients/<int:patient_id>', methods=['PUT'])
+@auth_required('token')
+def update_patient(patient_id):
+    # Check if current user is admin
+    admin_role = user_datastore.find_role('admin')
+    if admin_role not in current_user.roles:
+        return jsonify({"message": "Unauthorized access"}), 403
+    
+    patient = Patient.query.get(patient_id)
+    if not patient:
+        return jsonify({"message": "Patient not found"}), 404
+    
+    data = request.get_json()
+    
+    # Update patient's personal info
+    if data.get('full_name'):
+        full_name = data.get('full_name').strip().split(' ', 1)
+        patient.first_name = full_name[0] if full_name else ''
+        patient.last_name = full_name[1] if len(full_name) > 1 else ''
+    if data.get('sex'):
+        patient.sex = data.get('sex')
+    if data.get('dob'):
+        try:
+            patient.dob = datetime.strptime(data.get('dob'), '%Y-%m-%d').date()
+        except:
+            return jsonify({"message": "Invalid date format"}), 400
+    if data.get('contact_number'):
+        patient.contact_number = data.get('contact_number')
+    
+    # Update user's email if provided
+    if data.get('user_email'):
+        patient.user.email = data.get('user_email')
+    
+    db.session.commit()
+    return jsonify({"message": "Patient updated successfully"}), 200
+
+
+
 @app.route('/api/departments', methods=['GET', 'POST'])
 @auth_required('token')
 def manage_departments():
