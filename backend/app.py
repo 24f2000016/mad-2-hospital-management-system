@@ -545,6 +545,43 @@ def manage_appointments():
             })
         return jsonify({"appointments": appointments_data}), 200
 
+@app.route('/api/appointments/<int:appointment_id>', methods=['PUT'])
+@auth_required('token')
+def update_appointment(appointment_id):
+    # Check if current user is admin
+    admin_role = user_datastore.find_role('admin')
+    if admin_role not in current_user.roles:
+        return jsonify({"message": "Unauthorized access"}), 403
+    
+    appointment = Appointment.query.get(appointment_id)
+    if not appointment:
+        return jsonify({"message": "Appointment not found"}), 404
+    
+    data = request.get_json()
+    
+    # Update appointment timestamps if provided
+    if data.get('appointment_start_timestamp'):
+        try:
+            appointment.appointment_start_timestamp = datetime.fromisoformat(data.get('appointment_start_timestamp'))
+        except (ValueError, TypeError):
+            return jsonify({"message": "Invalid start timestamp format"}), 400
+    
+    if data.get('appointment_end_timestamp'):
+        try:
+            appointment.appointment_end_timestamp = datetime.fromisoformat(data.get('appointment_end_timestamp'))
+        except (ValueError, TypeError):
+            return jsonify({"message": "Invalid end timestamp format"}), 400
+    
+    # Update status if provided
+    if data.get('status'):
+        valid_statuses = ['booked', 'completed', 'canceled']
+        if data.get('status') not in valid_statuses:
+            return jsonify({"message": f"Invalid status. Must be one of: {', '.join(valid_statuses)}"}), 400
+        appointment.status = data.get('status')
+    
+    db.session.commit()
+    return jsonify({"message": "Appointment updated successfully"}), 200
+
 @app.route('/api/appointment/available-slots/<int:doctor_id>/<date_str>', methods=['GET'])
 @auth_required('token')
 def get_available_slots(doctor_id, date_str):
