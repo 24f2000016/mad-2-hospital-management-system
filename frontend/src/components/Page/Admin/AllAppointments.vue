@@ -5,6 +5,19 @@ const appointments = ref([]);
 const loading = ref(true);
 const error = ref(null);
 
+function formatTimestamp(timestamp) {
+    if (!timestamp) return 'N/A';
+    const date = new Date(timestamp);
+    return date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+}
+
 onMounted(() => {
     const token = localStorage.getItem('auth_token');
     if (!token) {
@@ -72,21 +85,21 @@ function goBack() {
                             <th>Appointment ID</th>
                             <th>Patient</th>
                             <th>Doctor</th>
-                            <th>Date</th>
-                            <th>Time</th>
                             <th>Department</th>
+                            <th>Start Time</th>
+                            <th>End Time</th>
                             <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-for="appointment in appointments" :key="appointment.id">
                             <td>{{ appointment.id }}</td>
-                            <td>{{ appointment.patient_name || 'N/A' }}</td>
-                            <td>{{ appointment.doctor_name || 'N/A' }}</td>
-                            <td>{{ appointment.appointment_date || 'N/A' }}</td>
-                            <td>{{ appointment.appointment_time || 'N/A' }}</td>
-                            <td>{{ appointment.department_name || 'N/A' }}</td>
-                            <td>{{ appointment.status || 'Pending' }}</td>
+                            <td>{{ appointment.patient_name }}</td>
+                            <td>{{ appointment.doctor_name }}</td>
+                            <td>{{ appointment.department_name }}</td>
+                            <td>{{ formatTimestamp(appointment.appointment_start_timestamp) }}</td>
+                            <td>{{ formatTimestamp(appointment.appointment_end_timestamp) }}</td>
+                            <td>{{ appointment.status }}</td>
                         </tr>
                     </tbody>
                 </table>

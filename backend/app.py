@@ -209,10 +209,17 @@ def admin_dashboard():
     appointments_data = []
     
     for appt in appointments:
+        patient_name = f"{appt.patient.first_name or ''} {appt.patient.last_name or ''}".strip() if appt.patient else None
+        doctor_name = f"{appt.doctor.first_name or ''} {appt.doctor.last_name or ''}".strip() if appt.doctor else None
+        department_name = appt.doctor.department.name if appt.doctor and appt.doctor.department else None
+        
         appointments_data.append({
             'id': appt.id,
             'patient_id': appt.patient_id,
             'doctor_id': appt.doctor_id,
+            'patient_name': patient_name,
+            'doctor_name': doctor_name,
+            'department_name': department_name,
             'appointment_start_timestamp': appt.appointment_start_timestamp.isoformat() if appt.appointment_start_timestamp else None,
             'appointment_end_timestamp': appt.appointment_end_timestamp.isoformat() if appt.appointment_end_timestamp else None,
             'status': appt.status
