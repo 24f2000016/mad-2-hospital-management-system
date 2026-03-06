@@ -8,7 +8,7 @@ const selectedDoctor = computed(() => {
     return doctors.value.find(doc => doc.id === parseInt(selectedDoctorId.value));
 });
 const availableSlots = ref([]);
-const appointments = ref([]);
+const selectedSlot = ref(null);
 const loadingSlots = ref(false);
 
 
@@ -47,6 +47,7 @@ async function fetchDoctors() {
 async function fetchAvailableSlots() {
     if (!selectedDoctor.value || !selectedDate.value) {
         availableSlots.value = [];
+        selectedSlot.value = null;
         return;
     }
 
@@ -65,15 +66,18 @@ async function fetchAvailableSlots() {
         if (response.ok) {
             const data = await response.json();
             availableSlots.value = data.available_slots;
+            selectedSlot.value = null;
             console.log('Available slots:', data.available_slots);
         } else {
             const errorText = await response.text();
             console.error('Failed to fetch available slots:', errorText);
             availableSlots.value = [];
+            selectedSlot.value = null;
         }
     } catch (error) {
         console.error('Error fetching available slots:', error);
         availableSlots.value = [];
+        selectedSlot.value = null;
     } finally {
         loadingSlots.value = false;
     }
@@ -81,7 +85,6 @@ async function fetchAvailableSlots() {
 
 onMounted(() => {
     fetchDoctors();
-    fetchAppointments();
 });
 
 // Watch for doctor or date changes
@@ -90,36 +93,19 @@ watch([selectedDoctorId, selectedDate], () => {
     fetchAvailableSlots();
 });
 
-
-async function fetchAppointments() {
-    const token = localStorage.getItem('auth_token');
-    try {
-        const response = await fetch('http://127.0.0.1:5000/api/appointment', {
-            method: 'GET',
-            headers: {
-                'Authentication-Token': token   
-            }
-        });
-        if (response.ok) {
-            const data = await response.json();
-            appointments.value = data.appointments;
-            console.log('Appointments:', appointments.value);
-        } else {
-            const errorText = await response.text();
-            console.error('Failed to fetch appointments:', errorText);
-        }
-    } catch (error) {
-        console.error('Error fetching appointments:', error);
-    }
-}
-
-async function bookSlot(slot) {
+async function bookSlot() {
     if (!selectedDoctor.value) {
         alert('Please select a doctor first.');
         return;
     }
     
-    const confirmBook = confirm(`Book slot ${slot.start_time} - ${slot.end_time} with Dr. ${selectedDoctor.value.full_name} on ${selectedDate.value}?`);
+    if (!selectedSlot.value) {
+        alert('Please select a time slot.');
+        return;
+    }
+    
+    const slot = JSON.parse(selectedSlot.value);
+    const confirmBook = confirm(`Book appointment with Dr. ${selectedDoctor.value.full_name} on ${selectedDate.value} from ${slot.start_time} to ${slot.end_time}?`);
     if (!confirmBook) return;
     
     const token = localStorage.getItem('auth_token');
@@ -139,7 +125,6 @@ async function bookSlot(slot) {
         if (response.ok) {
             alert('Appointment booked successfully!');
             await fetchAvailableSlots();
-            await fetchAppointments();
         } else {
             const errorText = await response.text();
             alert(`Failed to book appointment: ${errorText}`);
@@ -160,7 +145,6 @@ async function bookSlot(slot) {
         <p><strong>ID:</strong> {{ selectedDoctor.id }}</p>
     </div>
 
-
     <h2>Schedule Appointment</h2>
 
     <label for="appointment-date">Select date (next 20 days):</label>
@@ -173,42 +157,43 @@ async function bookSlot(slot) {
     />
     <p v-if="selectedDate">Selected: {{ selectedDate }}</p>
 
-    <h3>Available Slots:</h3>
+    <div v-if="selectedDoctor && !loadingSlots && availableSlots.length > 0" style="margin-top: 20px;">
+        <label for="appointment-slot">Select time slot:</label>
+        <select 
+            id="appointment-slot" 
+            v-model="selectedSlot"
+            style="padding: 8px; font-size: 16px; margin: 10px 0;"
+        >
+            <option value="">-- Choose a time slot --</option>
+            <option 
+                v-for="slot in availableSlots" 
+                :key="`${slot.start_time}-${slot.end_time}`"
+                :value="JSON.stringify(slot)"
+            >
+                {{ slot.start_time }} - {{ slot.end_time }}
+            </option>
+        </select>
+        
+        <div style="margin-top: 15px;">
+            <button 
+                @click="bookSlot"
+                class="btn btn-primary"
+                :disabled="!selectedSlot"
+            >
+                Book Appointment
+            </button>
+        </div>
+    </div>
     
-    <div v-if="loadingSlots" style="padding: 15px; text-align: center;">
+    <div v-else-if="loadingSlots" style="margin-top: 20px; padding: 15px; text-align: center;">
         Loading available slots...
     </div>
     
-    <table v-else-if="selectedDoctor && availableSlots.length > 0">
-        <thead>
-            <tr>
-                <th>Time Slot</th>
-                <th>Status</th>
-                <th>Capacity</th>
-                <th>Booked</th>
-                <th>Available</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr v-for="slot in availableSlots" :key="`${slot.start_time}-${slot.end_time}`">
-                <td>{{ slot.start_time }} - {{ slot.end_time }}</td>
-                <td>{{ slot.available > 0 ? 'Available' : slot.booked > 0 ? 'Full' : 'Available' }}</td>
-                <td>5</td>
-                <td>{{ slot.booked }}</td>
-                <td>{{ slot.available }}</td>
-                <td>
-                    <button 
-                        @click="bookSlot(slot)" 
-                        class="btn btn-primary"
-                        :disabled="slot.available === 0"
-                    >
-                        {{ slot.available > 0 ? 'Book' : 'Full' }}
-                    </button>
-                </td>
-            </tr>
-        </tbody>
-    </table>
-    <div v-else-if="!selectedDoctor" style="margin-top:10px;">Please select a doctor to view and book slots.</div>
-    <div v-else style="margin-top:10px;">No available slots for the selected date.</div>
+    <div v-else-if="!selectedDoctor" style="margin-top: 20px; padding: 15px;">
+        Please select a doctor to view available slots.
+    </div>
+    
+    <div v-else style="margin-top: 20px; padding: 15px;">
+        No available slots for the selected date.
+    </div>
 </template>

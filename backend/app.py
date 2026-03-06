@@ -541,7 +541,7 @@ def manage_appointments():
 @app.route('/api/appointment/available-slots/<int:doctor_id>/<date_str>', methods=['GET'])
 @auth_required('token')
 def get_available_slots(doctor_id, date_str):
-    """Get available appointment slots for a doctor on a specific date"""
+    """Get available appointment slots for a doctor on a specific date (10-minute intervals)"""
     try:
         target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
     except ValueError:
@@ -550,17 +550,6 @@ def get_available_slots(doctor_id, date_str):
     doctor = Doctor.query.get(doctor_id)
     if not doctor:
         return jsonify({"message": "Doctor not found"}), 404
-    
-    # Define available time slots (30-minute intervals, excluding lunch 14:30-15:00)
-    slot_times = [
-        ('09:00', '09:30'), ('09:30', '10:00'), ('10:30', '11:00'),
-        ('11:00', '11:30'), ('11:30', '12:00'), ('12:00', '12:30'),
-        ('12:30', '13:00'), ('13:00', '13:30'), ('13:30', '14:00'),
-        # Lunch break: skip ('14:30', '15:00')
-        ('15:00', '15:30'), ('15:30', '16:00'), ('16:00', '16:30'),
-        ('16:30', '17:00'), ('17:00', '17:30'), ('17:30', '18:00'),
-        ('18:00', '18:30'), ('18:30', '19:00')
-    ]
     
     # Get all booked appointments for this doctor on this date
     booked_appointments = Appointment.query.filter(
@@ -571,30 +560,41 @@ def get_available_slots(doctor_id, date_str):
     
     available_slots = []
     
-    for start_time_str, end_time_str in slot_times:
-        start_hour, start_min = map(int, start_time_str.split(':'))
-        end_hour, end_min = map(int, end_time_str.split(':'))
+    # Generate 10-minute slots from 09:00 to 19:00, excluding lunch 14:30-15:00
+    current_time = datetime.combine(target_date, __import__('datetime').time(9, 0))
+    end_time = datetime.combine(target_date, __import__('datetime').time(19, 0))
+    lunch_start = datetime.combine(target_date, __import__('datetime').time(14, 30))
+    lunch_end = datetime.combine(target_date, __import__('datetime').time(15, 0))
+    
+    while current_time < end_time:
+        # Skip lunch break
+        if lunch_start <= current_time < lunch_end:
+            current_time += __import__('datetime').timedelta(minutes=10)
+            continue
         
-        slot_start = datetime.combine(target_date, __import__('datetime').time(start_hour, start_min))
-        slot_end = datetime.combine(target_date, __import__('datetime').time(end_hour, end_min))
+        slot_end = current_time + __import__('datetime').timedelta(minutes=10)
         
-        # Check if this slot is booked
-        slot_booked_count = sum(1 for appt in booked_appointments 
-                                if appt.appointment_start_timestamp <= slot_start and 
-                                appt.appointment_end_timestamp > slot_start)
+        # Skip if slot end goes into lunch break
+        if current_time < lunch_start and slot_end > lunch_start:
+            current_time += __import__('datetime').timedelta(minutes=10)
+            continue
         
-        # Assuming max 5 patients per slot (configurable)
-        max_patients_per_slot = 5
-        available = max_patients_per_slot - slot_booked_count
+        # Check if this slot is already booked (max 1 patient per slot)
+        slot_booked = any(appt.appointment_start_timestamp == current_time for appt in booked_appointments)
         
-        available_slots.append({
-            'start_time': start_time_str,
-            'end_time': end_time_str,
-            'start_timestamp': slot_start.isoformat(),
-            'end_timestamp': slot_end.isoformat(),
-            'booked': slot_booked_count,
-            'available': max(0, available)
-        })
+        if not slot_booked:
+            start_time_str = current_time.strftime('%H:%M')
+            end_time_str = slot_end.strftime('%H:%M')
+            
+            available_slots.append({
+                'start_time': start_time_str,
+                'end_time': end_time_str,
+                'start_timestamp': current_time.isoformat(),
+                'end_timestamp': slot_end.isoformat(),
+                'available': True
+            })
+        
+        current_time += __import__('datetime').timedelta(minutes=10)
     
     return jsonify({"available_slots": available_slots}), 200
 
