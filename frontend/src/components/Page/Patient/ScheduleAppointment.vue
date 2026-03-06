@@ -7,7 +7,9 @@ const selectedDoctorId = ref(sessionStorage.getItem('selectedDoctorId'));
 const selectedDoctor = computed(() => {
     return doctors.value.find(doc => doc.id === parseInt(selectedDoctorId.value));
 });
+const availableSlots = ref([]);
 const appointments = ref([]);
+const loadingSlots = ref(false);
 
 
 const pad = (n) => String(n).padStart(2, '0')
@@ -42,11 +44,51 @@ async function fetchDoctors() {
     }
 }
 
+async function fetchAvailableSlots() {
+    if (!selectedDoctor.value || !selectedDate.value) {
+        availableSlots.value = [];
+        return;
+    }
+
+    loadingSlots.value = true;
+    const token = localStorage.getItem('auth_token');
+    try {
+        const response = await fetch(
+            `http://127.0.0.1:5000/api/appointment/available-slots/${selectedDoctor.value.id}/${selectedDate.value}`,
+            {
+                method: 'GET',
+                headers: {
+                    'Authentication-Token': token   
+                }
+            }
+        );
+        if (response.ok) {
+            const data = await response.json();
+            availableSlots.value = data.available_slots;
+            console.log('Available slots:', data.available_slots);
+        } else {
+            const errorText = await response.text();
+            console.error('Failed to fetch available slots:', errorText);
+            availableSlots.value = [];
+        }
+    } catch (error) {
+        console.error('Error fetching available slots:', error);
+        availableSlots.value = [];
+    } finally {
+        loadingSlots.value = false;
+    }
+}
+
 onMounted(() => {
     fetchDoctors();
     fetchAppointments();
 });
 
+// Watch for doctor or date changes
+import { watch } from 'vue'
+watch([selectedDoctorId, selectedDate], () => {
+    fetchAvailableSlots();
+});
 
 
 async function fetchAppointments() {
@@ -60,11 +102,7 @@ async function fetchAppointments() {
         });
         if (response.ok) {
             const data = await response.json();
-            // normalize appointment_date to YYYY-MM-DD so comparisons work
-            appointments.value = data.appointments.map(a => ({
-                ...a,
-                appointment_date: (a.appointment_date || '').split(' ')[0]
-            }));
+            appointments.value = data.appointments;
             console.log('Appointments:', appointments.value);
         } else {
             const errorText = await response.text();
@@ -80,7 +118,9 @@ async function bookSlot(slot) {
         alert('Please select a doctor first.');
         return;
     }
-    alert(`Booking slot ${slot} with Dr. ${selectedDoctor.value.full_name} on ${selectedDate.value}`);
+    
+    const confirmBook = confirm(`Book slot ${slot.start_time} - ${slot.end_time} with Dr. ${selectedDoctor.value.full_name} on ${selectedDate.value}?`);
+    if (!confirmBook) return;
     
     const token = localStorage.getItem('auth_token');
     try {
@@ -92,12 +132,13 @@ async function bookSlot(slot) {
             },
             body: JSON.stringify({
                 doctor_id: selectedDoctor.value.id,
-                appointment_date: selectedDate.value,
-                appointment_time_slot: slot
+                appointment_start_timestamp: slot.start_timestamp,
+                appointment_end_timestamp: slot.end_timestamp
             })
         });
         if (response.ok) {
             alert('Appointment booked successfully!');
+            await fetchAvailableSlots();
             await fetchAppointments();
         } else {
             const errorText = await response.text();
@@ -108,8 +149,6 @@ async function bookSlot(slot) {
         alert('Error booking appointment.');
     }
 }
-
-
 
 </script>
 
@@ -136,207 +175,40 @@ async function bookSlot(slot) {
 
     <h3>Available Slots:</h3>
     
-    <table v-if="selectedDoctor">
+    <div v-if="loadingSlots" style="padding: 15px; text-align: center;">
+        Loading available slots...
+    </div>
+    
+    <table v-else-if="selectedDoctor && availableSlots.length > 0">
         <thead>
             <tr>
                 <th>Time Slot</th>
                 <th>Status</th>
-                <th>Limit</th>
+                <th>Capacity</th>
                 <th>Booked</th>
                 <th>Available</th>
                 <th>Action</th>
             </tr>
         </thead>
         <tbody>
-            <tr>
-                <td>09:00 - 09:30</td>
-                <td>Available</td>
+            <tr v-for="slot in availableSlots" :key="`${slot.start_time}-${slot.end_time}`">
+                <td>{{ slot.start_time }} - {{ slot.end_time }}</td>
+                <td>{{ slot.available > 0 ? 'Available' : slot.booked > 0 ? 'Full' : 'Available' }}</td>
                 <td>5</td>
+                <td>{{ slot.booked }}</td>
+                <td>{{ slot.available }}</td>
                 <td>
-                    {{ appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '09:00 - 09:30').length }}
+                    <button 
+                        @click="bookSlot(slot)" 
+                        class="btn btn-primary"
+                        :disabled="slot.available === 0"
+                    >
+                        {{ slot.available > 0 ? 'Book' : 'Full' }}
+                    </button>
                 </td>
-                <td>{{ 5 - appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '09:00 - 09:30').length }}</td>
-                <td><button @click="bookSlot('09:00 - 09:30')" class="btn btn-primary">Book</button></td>
-            </tr>
-            <tr>
-                <td>09:30 - 10:00</td>
-                <td>Available</td>
-                <td>5</td>
-                <td>
-                    {{ appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '09:30 - 10:00').length }}
-                </td>
-                <td>{{ 5 - appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '09:30 - 10:00').length }}</td>
-                <td><button @click="bookSlot('09:30 - 10:00')" class="btn btn-primary">Book</button></td>
-            </tr>
-            <tr>
-                <td>10:30 - 11:00</td>
-                <td>Available</td>
-                <td>5</td>
-                <td>
-                    {{ appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '10:30 - 11:00').length }}
-                </td>
-                <td>{{ 5 - appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '10:30 - 11:00').length }}</td>
-                <td><button @click="bookSlot('10:30 - 11:00')" class="btn btn-primary">Book</button></td>
-            </tr>
-            <tr>
-                <td>11:00 - 11:30</td>
-                <td>Available</td>
-                <td>5</td>
-                <td>
-                    {{ appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '11:00 - 11:30').length }}
-                </td>
-                <td>{{ 5 - appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '11:00 - 11:30').length }}</td>
-                <td><button @click="bookSlot('11:00 - 11:30')" class="btn btn-primary">Book</button></td>
-            </tr>
-            <tr>
-                <td>11:30 - 12:00</td>
-                <td>Available</td>
-                <td>5</td>
-                <td>
-                    {{ appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '11:30 - 12:00').length }}
-                </td>
-                <td>{{ 5 - appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '11:30 - 12:00').length }}</td>
-                <td><button @click="bookSlot('11:30 - 12:00')" class="btn btn-primary">Book</button></td>
-            </tr>
-            <tr>
-                <td>12:00 - 12:30</td>
-                <td>Available</td>
-                <td>5</td>
-                <td>
-                    {{ appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '12:00 - 12:30').length }}
-                </td>
-                <td>{{ 5 - appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '12:00 - 12:30').length }}</td>
-                <td><button @click="bookSlot('12:00 - 12:30')" class="btn btn-primary">Book</button></td>
-            </tr>
-            <tr>
-                <td>12:30 - 13:00</td>
-                <td>Available</td>
-                <td>5</td>
-                <td>
-                    {{ appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '12:30 - 13:00').length }}
-                </td>
-                <td>{{ 5 - appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '12:30 - 13:00').length }}</td>
-                <td><button @click="bookSlot('12:30 - 13:00')" class="btn btn-primary">Book</button></td>
-            </tr>
-            <tr>
-                <td>13:00 - 13:30</td>
-                <td>Available</td>
-                <td>5</td>
-                <td>
-                    {{ appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '13:00 - 13:30').length }}
-                </td>
-                <td>{{ 5 - appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '13:00 - 13:30').length }}</td>
-                <td><button @click="bookSlot('13:00 - 13:30')" class="btn btn-primary">Book</button></td>
-            </tr>
-            <tr>
-                <td>13:30 - 14:00</td>
-                <td>Available</td>
-                <td>5</td>
-                <td>
-                    {{ appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '13:30 - 14:00').length }}
-                </td>
-                <td>{{ 5 - appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '13:30 - 14:00').length }}</td>
-                <td><button @click="bookSlot('13:30 - 14:00')" class="btn btn-primary">Book</button></td>
-            </tr>
-            <tr>
-                <td>14:00 - 14:30</td>
-                <td>Available</td>
-                <td>5</td>
-                <td>
-                    {{ appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '14:00 - 14:30').length }}
-                </td>
-                <td>{{ 5 - appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '14:00 - 14:30').length }}</td>
-                <td><button @click="bookSlot('14:00 - 14:30')" class="btn btn-primary">Book</button></td>
-            </tr>
-            <tr>
-                <td>14:30 - 15:00</td>
-                <td>Lunch Break</td>
-                <td>0</td>
-                <td>0</td>
-                <td>0</td>
-                <td><button class="btn btn-secondary" disabled>Book</button></td>
-            </tr>
-            <tr>
-                <td>15:00 - 15:30</td>
-                <td>Available</td>
-                <td>5</td>
-                <td>
-                    {{ appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '15:00 - 15:30').length }}
-                </td>
-                <td>{{ 5 - appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '15:00 - 15:30').length }}</td>
-                <td><button @click="bookSlot('15:00 - 15:30')" class="btn btn-primary">Book</button></td>
-            </tr>
-            <tr>
-                <td>15:30 - 16:00</td>
-                <td>Available</td>
-                <td>5</td>
-                <td>
-                    {{ appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '15:30 - 16:00').length }}
-                </td>
-                <td>{{ 5 - appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '15:30 - 16:00').length }}</td>
-                <td><button @click="bookSlot('15:30 - 16:00')" class="btn btn-primary">Book</button></td>
-            </tr>
-            <tr>
-                <td>16:00 - 16:30</td>
-                <td>Available</td>
-                <td>5</td>
-                <td>
-                    {{ appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '13:30 - 14:00').length }}
-                </td>
-                <td>{{ 5 - appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '16:00 - 16:30').length }}</td>
-                <td><button @click="bookSlot('16:00 - 16:30')" class="btn btn-primary">Book</button></td>
-            </tr>
-            <tr>
-                <td>16:30 - 17:00</td>
-                <td>Available</td>
-                <td>5</td>
-                <td>
-                    {{ appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '13:30 - 14:00').length }}
-                </td>
-                <td>{{ 5 - appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '16:30 - 17:00').length }}</td>
-                <td><button @click="bookSlot('16:30 - 17:00')" class="btn btn-primary">Book</button></td>
-            </tr>
-            <tr>
-                <td>17:00 - 17:30</td>
-                <td>Available</td>
-                <td>5</td>
-                <td>
-                    {{ appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '17:00 - 17:30').length }}
-                </td>
-                <td>{{ 5 - appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '17:00 - 17:30').length }}</td>
-                <td><button @click="bookSlot('17:00 - 17:30')" class="btn btn-primary">Book</button></td>
-            </tr>
-            <tr>
-                <td>17:30 - 18:00</td>
-                <td>Available</td>
-                <td>5</td>
-                <td>
-                    {{ appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '17:30 - 18:00').length }}
-                </td>
-                <td>{{ 5 - appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '17:30 - 18:00').length }}</td>
-                <td><button @click="bookSlot('17:30 - 18:00')" class="btn btn-primary">Book</button></td>
-            </tr>
-            <tr>
-                <td>18:00 - 18:30</td>
-                <td>Available</td>
-                <td>5</td>
-                <td>
-                    {{ appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '18:00 - 18:30').length }}
-                </td>
-                <td>{{ 5 - appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '18:00 - 18:30').length }}</td>
-                <td><button @click="bookSlot('18:00 - 18:30')" class="btn btn-primary">Book</button></td>
-            </tr>
-            <tr>
-                <td>18:30 - 19:00</td>
-                <td>Available</td>
-                <td>5</td>
-                <td>
-                    {{ appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '18:30 - 19:00').length }}
-                </td>
-                <td>{{ 5 - appointments.filter(a => a.doctor_id === selectedDoctor.id && a.appointment_date == selectedDate && a.appointment_time_slot == '18:30 - 19:00').length }}</td>
-                <td><button @click="bookSlot('18:30 - 19:00')" class="btn btn-primary">Book</button></td>
             </tr>
         </tbody>
     </table>
-    <div v-else style="margin-top:10px;">Please select a doctor to view and book slots.</div>
+    <div v-else-if="!selectedDoctor" style="margin-top:10px;">Please select a doctor to view and book slots.</div>
+    <div v-else style="margin-top:10px;">No available slots for the selected date.</div>
 </template>

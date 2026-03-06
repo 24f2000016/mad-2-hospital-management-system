@@ -18,6 +18,10 @@ function navigateToAddDoctor() {
     window.location.href = '/add-doctor';
 }
 
+function navigateToAddPatient() {
+    window.location.href = '/add-patient';
+}
+
 function navigateToAllDoctors() {
     window.location.href = '/admin/all-doctors';
 }
@@ -117,7 +121,10 @@ onMounted(() => {
         
         <div class="stats-container">
             <div class="stat-item clickable" @click="navigateToAllPatients">
-                <span>Total patients: <strong>{{ patients.length }}</strong></span>
+                <div class="stat-header">
+                    <span>Total patients: <strong>{{ patients.length }}</strong></span>
+                    <button class="add-btn" @click.stop="navigateToAddPatient" title="Add Patient">+</button>
+                </div>
             </div>
             <div class="stat-item clickable" @click="navigateToAllDoctors">
                 <div class="stat-header">

@@ -50,7 +50,8 @@ class User(db.Model, UserMixin):
 class Doctor(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), unique=True, nullable=False)
-    full_name = db.Column(db.String(), nullable=False)
+    first_name = db.Column(db.String())
+    last_name = db.Column(db.String())
     department_id = db.Column(db.Integer, db.ForeignKey('department.id'), nullable=False)
     experience = db.Column(db.String(), nullable=False)
     user = db.relationship('User', back_populates='doctor')
@@ -72,8 +73,8 @@ class Appointment(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True, nullable=False, unique=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
     doctor_id = db.Column(db.Integer, db.ForeignKey('doctor.id'), nullable=False)
-    appointment_date = db.Column(db.DateTime(), nullable=False)
-    appointment_time_slot = db.Column(db.String(), nullable=False)
+    appointment_start_timestamp = db.Column(db.DateTime(), nullable=False)
+    appointment_end_timestamp = db.Column(db.DateTime(), nullable=False)
     status = db.Column(db.String(), default='booked', nullable=False)  # 'booked', 'completed', 'canceled'
     patient = db.relationship('Patient', back_populates='appointments', cascade='all, delete-orphan', single_parent=True)
     doctor = db.relationship('Doctor', back_populates='appointments', cascade='all, delete-orphan', single_parent=True)
@@ -183,7 +184,9 @@ def admin_dashboard():
     for doctor in doctors:
         doctors_data.append({
             'id': doctor.id,
-            'full_name': doctor.full_name,
+            'first_name': doctor.first_name,
+            'last_name': doctor.last_name,
+            'full_name': f"{doctor.first_name or ''} {doctor.last_name or ''}".strip(),
             'department_id': doctor.department_id,
             'department_name': doctor.department.name if doctor.department else None,
             'experience': doctor.experience,
@@ -247,7 +250,8 @@ def manage_doctors():
 
         doctor = Doctor(
             user_id=user.id,
-            full_name=data.get('doctor_full_name', ''),
+            first_name=data.get('doctor_first_name', ''),
+            last_name=data.get('doctor_last_name', ''),
             department_id=data.get('doctor_department_id'),
             experience=data.get('doctor_experience', '')
         )
@@ -262,7 +266,9 @@ def manage_doctors():
         for doctor in doctors:
             doctors_data.append({
                 'id': doctor.id,
-                'full_name': doctor.full_name,
+                'first_name': doctor.first_name,
+                'last_name': doctor.last_name,
+                'full_name': f"{doctor.first_name or ''} {doctor.last_name or ''}".strip(),
                 'department': doctor.department.name if doctor.department else None,
                 'experience': doctor.experience,
                 'email': doctor.user.email if doctor.user else None
@@ -284,8 +290,10 @@ def update_doctor(doctor_id):
     data = request.get_json()
     
     # Update doctor's personal info
-    if data.get('full_name'):
-        doctor.full_name = data.get('full_name')
+    if data.get('first_name'):
+        doctor.first_name = data.get('first_name')
+    if data.get('last_name'):
+        doctor.last_name = data.get('last_name')
     if data.get('experience'):
         doctor.experience = data.get('experience')
     if data.get('department_id'):
@@ -299,6 +307,78 @@ def update_doctor(doctor_id):
     
     db.session.commit()
     return jsonify({"message": "Doctor updated successfully"}), 200
+
+
+
+@app.route('/api/patient', methods=['POST', 'GET'])
+@auth_required('token')
+def manage_patients():
+    # Check if current user is admin
+    admin_role = user_datastore.find_role('admin')
+    
+    if request.method == 'POST':
+        if admin_role not in current_user.roles:
+            return jsonify({"message": "Unauthorized access"}), 403
+        data = request.get_json()
+
+        # Check if user already exists
+        if user_datastore.find_user(email=data.get('patient_email')):
+            return jsonify({"message": "Email already exists"}), 400
+        
+        if user_datastore.find_user(username=data.get('patient_username')):
+            return jsonify({"message": "Username already taken"}), 400
+
+        # Create user for patient
+        user = user_datastore.create_user(
+            email=data.get('patient_email'),
+            username=data.get('patient_username'),
+            password=hash_password(data.get('patient_password'))
+        )
+        user_datastore.add_role_to_user(user, user_datastore.find_role('patient'))
+
+        # Parse date of birth
+        dob = None
+        if data.get('patient_dob'):
+            try:
+                dob = datetime.strptime(data.get('patient_dob'), '%Y-%m-%d').date()
+            except:
+                return jsonify({"message": "Invalid date format for DOB"}), 400
+
+        # Create patient record
+        patient = Patient(
+            user_id=user.id,
+            first_name=data.get('patient_first_name', ''),
+            last_name=data.get('patient_last_name', ''),
+            dob=dob,
+            sex=data.get('patient_sex', ''),
+            contact_number=data.get('patient_contact_number', '')
+        )
+
+        db.session.add(patient)
+        db.session.commit()
+        return jsonify({"message": "Patient added successfully"}), 201
+    
+    elif request.method == 'GET':
+        patients = Patient.query.all()
+        patients_data = []
+        for patient in patients:
+            # Calculate age from date of birth
+            age = None
+            if patient.dob:
+                today = date.today()
+                age = today.year - patient.dob.year - ((today.month, today.day) < (patient.dob.month, patient.dob.day))
+            
+            patients_data.append({
+                'id': patient.id,
+                'first_name': patient.first_name,
+                'last_name': patient.last_name,
+                'age': age,
+                'sex': patient.sex,
+                'contact_number': patient.contact_number,
+                'dob': str(patient.dob) if patient.dob else None,
+                'email': patient.user.email if patient.user else None
+            })
+        return jsonify({"patients": patients_data}), 200
 
 
 
@@ -422,16 +502,22 @@ def manage_appointments():
         if not doctor:
             return jsonify({"message": "Doctor not found"}), 404
 
+        try:
+            start_timestamp = datetime.fromisoformat(data.get('appointment_start_timestamp'))
+            end_timestamp = datetime.fromisoformat(data.get('appointment_end_timestamp'))
+        except (ValueError, TypeError):
+            return jsonify({"message": "Invalid timestamp format"}), 400
+
         new_appointment = Appointment(
             patient_id=patient.id,
             doctor_id=doctor.id,
-            appointment_date=datetime.strptime(data.get('appointment_date'), '%Y-%m-%d'),
-            appointment_time_slot=data.get('appointment_time_slot'),
-            status='scheduled'
+            appointment_start_timestamp=start_timestamp,
+            appointment_end_timestamp=end_timestamp,
+            status='booked'
         )
         db.session.add(new_appointment)
         db.session.commit()
-        return jsonify({"message": "Appointment scheduled successfully"}), 201
+        return jsonify({"message": "Appointment scheduled successfully", "appointment_id": new_appointment.id}), 201
     
     elif request.method == 'GET':
         
@@ -443,16 +529,74 @@ def manage_appointments():
                 'doctor_id': appt.doctor_id,
                 'patient_id': appt.patient_id,
                 'patient_name': f"{appt.patient.first_name or ''} {appt.patient.last_name or ''}".strip() if appt.patient else None,
-                'doctor_name': appt.doctor.full_name if appt.doctor else None,
+                'doctor_name': f"{appt.doctor.first_name or ''} {appt.doctor.last_name or ''}".strip() if appt.doctor else None,
                 'doctor_email': appt.doctor.user.email if appt.doctor and appt.doctor.user else None,
                 'department': appt.doctor.department.name if appt.doctor and appt.doctor.department else None,
-                'appointment_date': str(appt.appointment_date),
-                'appointment_time_slot': appt.appointment_time_slot,
+                'appointment_start_timestamp': appt.appointment_start_timestamp.isoformat() if appt.appointment_start_timestamp else None,
+                'appointment_end_timestamp': appt.appointment_end_timestamp.isoformat() if appt.appointment_end_timestamp else None,
                 'status': appt.status
             })
         return jsonify({"appointments": appointments_data}), 200
 
-
+@app.route('/api/appointment/available-slots/<int:doctor_id>/<date_str>', methods=['GET'])
+@auth_required('token')
+def get_available_slots(doctor_id, date_str):
+    """Get available appointment slots for a doctor on a specific date"""
+    try:
+        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"message": "Invalid date format. Use YYYY-MM-DD"}), 400
+    
+    doctor = Doctor.query.get(doctor_id)
+    if not doctor:
+        return jsonify({"message": "Doctor not found"}), 404
+    
+    # Define available time slots (30-minute intervals, excluding lunch 14:30-15:00)
+    slot_times = [
+        ('09:00', '09:30'), ('09:30', '10:00'), ('10:30', '11:00'),
+        ('11:00', '11:30'), ('11:30', '12:00'), ('12:00', '12:30'),
+        ('12:30', '13:00'), ('13:00', '13:30'), ('13:30', '14:00'),
+        # Lunch break: skip ('14:30', '15:00')
+        ('15:00', '15:30'), ('15:30', '16:00'), ('16:00', '16:30'),
+        ('16:30', '17:00'), ('17:00', '17:30'), ('17:30', '18:00'),
+        ('18:00', '18:30'), ('18:30', '19:00')
+    ]
+    
+    # Get all booked appointments for this doctor on this date
+    booked_appointments = Appointment.query.filter(
+        Appointment.doctor_id == doctor_id,
+        Appointment.appointment_start_timestamp >= datetime.combine(target_date, datetime.min.time()),
+        Appointment.appointment_start_timestamp < datetime.combine(target_date + __import__('datetime').timedelta(days=1), datetime.min.time())
+    ).all()
+    
+    available_slots = []
+    
+    for start_time_str, end_time_str in slot_times:
+        start_hour, start_min = map(int, start_time_str.split(':'))
+        end_hour, end_min = map(int, end_time_str.split(':'))
+        
+        slot_start = datetime.combine(target_date, __import__('datetime').time(start_hour, start_min))
+        slot_end = datetime.combine(target_date, __import__('datetime').time(end_hour, end_min))
+        
+        # Check if this slot is booked
+        slot_booked_count = sum(1 for appt in booked_appointments 
+                                if appt.appointment_start_timestamp <= slot_start and 
+                                appt.appointment_end_timestamp > slot_start)
+        
+        # Assuming max 5 patients per slot (configurable)
+        max_patients_per_slot = 5
+        available = max_patients_per_slot - slot_booked_count
+        
+        available_slots.append({
+            'start_time': start_time_str,
+            'end_time': end_time_str,
+            'start_timestamp': slot_start.isoformat(),
+            'end_timestamp': slot_end.isoformat(),
+            'booked': slot_booked_count,
+            'available': max(0, available)
+        })
+    
+    return jsonify({"available_slots": available_slots}), 200
 
 
 
