@@ -213,8 +213,8 @@ def admin_dashboard():
             'id': appt.id,
             'patient_id': appt.patient_id,
             'doctor_id': appt.doctor_id,
-            'appointment_date': str(appt.appointment_date),
-            'appointment_time_slot': appt.appointment_time_slot,
+            'appointment_start_timestamp': appt.appointment_start_timestamp.isoformat() if appt.appointment_start_timestamp else None,
+            'appointment_end_timestamp': appt.appointment_end_timestamp.isoformat() if appt.appointment_end_timestamp else None,
             'status': appt.status
         })
     
