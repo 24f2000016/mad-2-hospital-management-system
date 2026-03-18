@@ -17,7 +17,7 @@ const toYMD = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDat
 
 const today = new Date()
 const minDate = toYMD(today)
-const maxDate = toYMD(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 20))
+const maxDate = toYMD(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7))
 
 // default to today's date
 selectedDate.value = minDate
@@ -147,7 +147,7 @@ async function bookSlot() {
 
     <h2>Schedule Appointment</h2>
 
-    <label for="appointment-date">Select date (next 20 days):</label>
+    <label for="appointment-date">Select date (next 7 days):</label>
     <input
         id="appointment-date"
         type="date"
