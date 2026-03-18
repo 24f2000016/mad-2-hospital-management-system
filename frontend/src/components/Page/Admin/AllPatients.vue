@@ -32,6 +32,91 @@ function goBack() {
     window.location.href = '/admin-dashboard';
 }
 
+async function blacklistPatient(patient) {
+    if (!confirm(`Are you sure you want to blacklist ${patient.full_name}?`)) {
+        return;
+    }
+    
+    const token = localStorage.getItem('auth_token');
+    try {
+        const response = await fetch(`http://localhost:5000/api/patient/${patient.id}/blacklist`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authentication-Token': token
+            }
+        });
+        
+        if (response.ok) {
+            alert('Patient has been blacklisted');
+            fetchPatients();
+        } else {
+            const data = await response.json();
+            alert(`Error: ${data.message}`);
+        }
+    } catch (err) {
+        alert(`Error blacklisting patient: ${err.message}`);
+    }
+}
+
+async function whitelistPatient(patient) {
+    if (!confirm(`Are you sure you want to restore ${patient.full_name} to active status?`)) {
+        return;
+    }
+    
+    const token = localStorage.getItem('auth_token');
+    try {
+        const response = await fetch(`http://localhost:5000/api/patient/${patient.id}/whitelist`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authentication-Token': token
+            }
+        });
+        
+        if (response.ok) {
+            alert('Patient has been restored to active status');
+            fetchPatients();
+        } else {
+            const data = await response.json();
+            alert(`Error: ${data.message}`);
+        }
+    } catch (err) {
+        alert(`Error restoring patient: ${err.message}`);
+    }
+}
+
+function fetchPatients() {
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+        error.value = "No authentication token found. Please login first.";
+        loading.value = false;
+        return;
+    }
+
+    fetch('http://localhost:5000/api/admin-dashboard', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authentication-Token': token
+        }
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            patients.value = data.patients || [];
+            loading.value = false;
+        })
+        .catch(err => {
+            error.value = err.message || "Error fetching patients data";
+            loading.value = false;
+        });
+}
+
 function openEditModal(patient) {
     editingPatient.value = patient;
     editFormData.value = {
@@ -93,34 +178,7 @@ function savePatientDetails() {
 }
 
 onMounted(() => {
-    const token = localStorage.getItem('auth_token');
-    if (!token) {
-        error.value = "No authentication token found. Please login first.";
-        loading.value = false;
-        return;
-    }
-
-    fetch('http://localhost:5000/api/admin-dashboard', {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authentication-Token': token
-        }
-    })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`Server error: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            patients.value = data.patients || [];
-            loading.value = false;
-        })
-        .catch(err => {
-            error.value = err.message || "Error fetching patients data";
-            loading.value = false;
-        });
+    fetchPatients();
 });
 </script>
 
@@ -176,6 +234,7 @@ onMounted(() => {
                         <th>Sex</th>
                         <th>Contact Number</th>
                         <th>Appointments</th>
+                        <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -190,7 +249,30 @@ onMounted(() => {
                         <td>{{ patient.contact_number || 'N/A' }}</td>
                         <td>{{ patient.appointment_count }}</td>
                         <td>
-                            <button @click="openEditModal(patient)" class="edit-btn">Edit</button>
+                            <span :class="['status-badge', patient.active ? 'active' : 'inactive']">
+                                {{ patient.active ? 'Active' : 'Blacklisted' }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="actions-group">
+                                <button @click="openEditModal(patient)" class="edit-btn">Edit</button>
+                                <button 
+                                    v-if="patient.active"
+                                    @click="blacklistPatient(patient)" 
+                                    class="blacklist-btn"
+                                    title="Blacklist this patient"
+                                >
+                                    Blacklist
+                                </button>
+                                <button 
+                                    v-else
+                                    @click="whitelistPatient(patient)" 
+                                    class="whitelist-btn"
+                                    title="Restore this patient"
+                                >
+                                    Restore
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 </tbody>
@@ -373,6 +455,60 @@ h2 {
 
 .edit-btn:hover {
     background-color: #1565c0;
+}
+
+.blacklist-btn {
+    padding: 6px 12px;
+    background-color: #d32f2f;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background-color 0.3s ease;
+}
+
+.blacklist-btn:hover {
+    background-color: #b71c1c;
+}
+
+.whitelist-btn {
+    padding: 6px 12px;
+    background-color: #388e3c;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background-color 0.3s ease;
+}
+
+.whitelist-btn:hover {
+    background-color: #2e7d32;
+}
+
+.actions-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.status-badge.active {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+.status-badge.inactive {
+    background-color: #ffebee;
+    color: #c62828;
 }
 
 .modal-overlay {

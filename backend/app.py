@@ -217,7 +217,8 @@ def admin_dashboard():
             'contact_number': patient.contact_number,
             'dob': str(patient.dob) if patient.dob else None,
             'appointment_count': appointment_count,
-            'user_email': patient.user.email if patient.user else None
+            'user_email': patient.user.email if patient.user else None,
+            'active': patient.user.active if patient.user else True
         })
     
     # Get doctors data
@@ -503,6 +504,40 @@ def update_patient(patient_id):
     
     db.session.commit()
     return jsonify({"message": "Patient updated successfully"}), 200
+
+@app.route('/api/patient/<int:patient_id>/blacklist', methods=['POST'])
+@auth_required('token')
+def blacklist_patient(patient_id):
+    # Check if current user is admin
+    admin_role = user_datastore.find_role('admin')
+    if admin_role not in current_user.roles:
+        return jsonify({"message": "Unauthorized access"}), 403
+    
+    patient = Patient.query.get(patient_id)
+    if not patient:
+        return jsonify({"message": "Patient not found"}), 404
+    
+    # Set the user's active status to False
+    patient.user.active = False
+    db.session.commit()
+    return jsonify({"message": "Patient has been blacklisted"}), 200
+
+@app.route('/api/patient/<int:patient_id>/whitelist', methods=['POST'])
+@auth_required('token')
+def whitelist_patient(patient_id):
+    # Check if current user is admin
+    admin_role = user_datastore.find_role('admin')
+    if admin_role not in current_user.roles:
+        return jsonify({"message": "Unauthorized access"}), 403
+    
+    patient = Patient.query.get(patient_id)
+    if not patient:
+        return jsonify({"message": "Patient not found"}), 404
+    
+    # Set the user's active status to True
+    patient.user.active = True
+    db.session.commit()
+    return jsonify({"message": "Patient has been restored to active status"}), 200
 
 
 
