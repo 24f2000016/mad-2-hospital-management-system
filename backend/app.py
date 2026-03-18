@@ -546,8 +546,6 @@ def whitelist_patient(patient_id):
 def manage_departments():
     # Check if current user is admin
     admin_role = user_datastore.find_role('admin')
-    if admin_role not in current_user.roles:
-        return jsonify({"message": "Unauthorized access"}), 403
 
     if request.method == 'GET':
         departments = Department.query.all()
@@ -558,6 +556,8 @@ def manage_departments():
         return jsonify({"departments": departments_data}), 200
 
     elif request.method == 'POST':
+        if admin_role not in current_user.roles:
+            return jsonify({"message": "Unauthorized access"}), 403
         data = request.get_json()
         if not data.get('name'):
             return jsonify({"message": "Department name is required"}), 400
