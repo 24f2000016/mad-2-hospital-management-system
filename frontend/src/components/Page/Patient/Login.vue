@@ -6,6 +6,7 @@ const router = useRouter();
 const email = ref('');
 const password = ref('');
 const token = ref(localStorage.getItem('auth_token'));
+const errorMessage = ref('');
 
 // Redirect to dashboard if already logged in
 onMounted(() => {
@@ -15,8 +16,10 @@ onMounted(() => {
 });
 
 async function login() {
+  errorMessage.value = ''; // Clear previous errors
+  
   try {
-    const response = await fetch('http://127.0.0.1:5000/login?include_auth_token', {
+    const response = await fetch('http://127.0.0.1:5000/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.value, password: password.value })
@@ -32,10 +35,12 @@ async function login() {
       // Redirect to dashboard after successful login
       router.push('/dashboard');
     } else {
-      alert("Login Failed");
+      // Handle error responses (including blacklisted account)
+      errorMessage.value = data.error || 'Login failed';
     }
   } catch (error) {
     console.error(error);
+    errorMessage.value = 'An error occurred during login. Please try again.';
   }
 }
 
@@ -47,6 +52,9 @@ function goToRegister() {
 
 <template>
       <h2>Login</h2>
+      <div v-if="errorMessage" style="color: red; margin-bottom: 16px;">
+        {{ errorMessage }}
+      </div>
       <input v-model="email" placeholder="Email" />
       <input v-model="password" type="password" placeholder="Password" />
       <button @click="login">Login</button>
