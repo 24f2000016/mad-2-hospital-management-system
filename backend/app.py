@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_security import Security, SQLAlchemyUserDatastore, UserMixin, RoleMixin, auth_required, current_user
-from flask_security.utils import hash_password
+from flask_security.utils import hash_password, verify_password
 from flask_cors import CORS
 from datetime import datetime, date
 
@@ -112,6 +112,49 @@ user_datastore = SQLAlchemyUserDatastore(db, User, Role)
 security = Security(app, user_datastore)
 
 # Routes
+@app.route('/api/login', methods=['POST'])
+def custom_login():
+    """
+    Custom login endpoint that checks if user account is active/blacklisted
+    """
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+    
+    if not email or not password:
+        return jsonify({"error": "Email and password are required"}), 400
+    
+    # Find user by email
+    user = user_datastore.find_user(email=email)
+    
+    if not user:
+        return jsonify({"error": "Invalid email or password"}), 401
+    
+    # Verify password
+    if not verify_password(password, user.password):
+        return jsonify({"error": "Invalid email or password"}), 401
+    
+    # Check if user account is active
+    if not user.active:
+        return jsonify({
+            "error": "Your account has been blacklisted. Please contact support or administrator for assistance."
+        }), 403
+    
+    # Generate authentication token
+    user.get_auth_token()
+    db.session.commit()
+    
+    return jsonify({
+        "response": {
+            "user": {
+                "email": user.email,
+                "username": user.username,
+                "authentication_token": user.get_auth_token(),
+                "roles": [role.name for role in user.roles]
+            }
+        }
+    }), 200
+
 @app.route('/api/register', methods=['POST'])
 def register():
     data = request.get_json()
