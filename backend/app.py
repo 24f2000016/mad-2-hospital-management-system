@@ -278,7 +278,9 @@ def manage_doctors():
                 'full_name': f"{doctor.first_name or ''} {doctor.last_name or ''}".strip(),
                 'department': doctor.department.name if doctor.department else None,
                 'experience': doctor.experience,
-                'email': doctor.user.email if doctor.user else None
+                'email': doctor.user.email if doctor.user else None,
+                'active': doctor.user.active if doctor.user else True,
+                'username': doctor.user.username if doctor.user else None
             })
         return jsonify({"doctors": doctors_data}), 200
 
@@ -314,6 +316,40 @@ def update_doctor(doctor_id):
     
     db.session.commit()
     return jsonify({"message": "Doctor updated successfully"}), 200
+
+@app.route('/api/doctor/<int:doctor_id>/blacklist', methods=['POST'])
+@auth_required('token')
+def blacklist_doctor(doctor_id):
+    # Check if current user is admin
+    admin_role = user_datastore.find_role('admin')
+    if admin_role not in current_user.roles:
+        return jsonify({"message": "Unauthorized access"}), 403
+    
+    doctor = Doctor.query.get(doctor_id)
+    if not doctor:
+        return jsonify({"message": "Doctor not found"}), 404
+    
+    # Set the user's active status to False
+    doctor.user.active = False
+    db.session.commit()
+    return jsonify({"message": "Doctor has been blacklisted"}), 200
+
+@app.route('/api/doctor/<int:doctor_id>/whitelist', methods=['POST'])
+@auth_required('token')
+def whitelist_doctor(doctor_id):
+    # Check if current user is admin
+    admin_role = user_datastore.find_role('admin')
+    if admin_role not in current_user.roles:
+        return jsonify({"message": "Unauthorized access"}), 403
+    
+    doctor = Doctor.query.get(doctor_id)
+    if not doctor:
+        return jsonify({"message": "Doctor not found"}), 404
+    
+    # Set the user's active status to True
+    doctor.user.active = True
+    db.session.commit()
+    return jsonify({"message": "Doctor has been restored to active status"}), 200
 
 
 

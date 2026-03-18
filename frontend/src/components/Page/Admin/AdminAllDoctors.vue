@@ -129,6 +129,60 @@ async function saveDoctor() {
     }
 }
 
+async function blacklistDoctor(doctor) {
+    if (!confirm(`Are you sure you want to blacklist ${doctor.full_name}?`)) {
+        return;
+    }
+    
+    const token = localStorage.getItem('auth_token');
+    try {
+        const response = await fetch(`http://localhost:5000/api/doctor/${doctor.id}/blacklist`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authentication-Token': token
+            }
+        });
+        
+        if (response.ok) {
+            alert('Doctor has been blacklisted');
+            fetchDoctors();
+        } else {
+            const data = await response.json();
+            alert(`Error: ${data.message}`);
+        }
+    } catch (err) {
+        alert(`Error blacklisting doctor: ${err.message}`);
+    }
+}
+
+async function whitelistDoctor(doctor) {
+    if (!confirm(`Are you sure you want to restore ${doctor.full_name} to active status?`)) {
+        return;
+    }
+    
+    const token = localStorage.getItem('auth_token');
+    try {
+        const response = await fetch(`http://localhost:5000/api/doctor/${doctor.id}/whitelist`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authentication-Token': token
+            }
+        });
+        
+        if (response.ok) {
+            alert('Doctor has been restored to active status');
+            fetchDoctors();
+        } else {
+            const data = await response.json();
+            alert(`Error: ${data.message}`);
+        }
+    } catch (err) {
+        alert(`Error restoring doctor: ${err.message}`);
+    }
+}
+
 function goBack() {
     window.location.href = '/admin-dashboard';
 }
@@ -195,6 +249,7 @@ function goBack() {
                             <th>Email</th>
                             <th>Department</th>
                             <th>Experience</th>
+                            <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -206,7 +261,30 @@ function goBack() {
                             <td>{{ doctor.department }}</td>
                             <td>{{ doctor.experience }}</td>
                             <td>
-                                <button @click="openEditForm(doctor)" class="edit-btn">Edit</button>
+                                <span :class="['status-badge', doctor.active ? 'active' : 'inactive']">
+                                    {{ doctor.active ? 'Active' : 'Blacklisted' }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="actions-group">
+                                    <button @click="openEditForm(doctor)" class="edit-btn">Edit</button>
+                                    <button 
+                                        v-if="doctor.active"
+                                        @click="blacklistDoctor(doctor)" 
+                                        class="blacklist-btn"
+                                        title="Blacklist this doctor"
+                                    >
+                                        Blacklist
+                                    </button>
+                                    <button 
+                                        v-else
+                                        @click="whitelistDoctor(doctor)" 
+                                        class="whitelist-btn"
+                                        title="Restore this doctor"
+                                    >
+                                        Restore
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     </tbody>
@@ -383,6 +461,30 @@ function goBack() {
     border-bottom: none;
 }
 
+.status-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-badge.active {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+.status-badge.inactive {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+.actions-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 .edit-btn {
     padding: 6px 12px;
     background-color: #1976d2;
@@ -395,6 +497,34 @@ function goBack() {
 
 .edit-btn:hover {
     background-color: #1565c0;
+}
+
+.blacklist-btn {
+    padding: 6px 12px;
+    background-color: #d32f2f;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.blacklist-btn:hover {
+    background-color: #c62828;
+}
+
+.whitelist-btn {
+    padding: 6px 12px;
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.whitelist-btn:hover {
+    background-color: #45a049;
 }
 
 /* Modal Styles */
