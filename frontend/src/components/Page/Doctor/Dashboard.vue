@@ -6,7 +6,7 @@ const router = useRouter();
 const currentUserEmail = ref('Loading...');
 const appointments = ref([]);
 
-const todaysAppointments = computed(() => {
+const upcomingAppointments = computed(() => {
   if (!currentUserEmail.value || !appointments.value) return [];
   const today = new Date();
   const yyyy = today.getFullYear();
@@ -15,11 +15,16 @@ const todaysAppointments = computed(() => {
   const todayStr = `${yyyy}-${mm}-${dd}`;
 
   return appointments.value.filter(a => {
-    const aDate = (a.appointment_date || '').split(' ')[0];
-    const matchesDate = aDate === todayStr;
+    // Extract date from appointment_start_timestamp (ISO format: "2026-03-20T10:30:00")
+    const aDate = (a.appointment_start_timestamp || '').split('T')[0];
+    // Show appointments from today onwards
+    const isUpcoming = aDate >= todayStr;
     // Match by doctor email
     const matchesDoctor = a.doctor_email === currentUserEmail.value;
-    return matchesDate && matchesDoctor;
+    return isUpcoming && matchesDoctor;
+  }).sort((a, b) => {
+    // Sort by appointment date and time
+    return a.appointment_start_timestamp.localeCompare(b.appointment_start_timestamp);
   });
 });
 
@@ -80,11 +85,12 @@ async function fetchAppointments() {
         });
         if (response.ok) {
             const data = await response.json();
-            // normalize appointment_date to YYYY-MM-DD so comparisons work
-      appointments.value = data.appointments.map(a => ({
-        ...a,
-        appointment_date: (a.appointment_date || '').split(' ')[0]
-      }));
+            // Convert appointment_start_timestamp to readable format
+            appointments.value = data.appointments.map(a => ({
+                ...a,
+                appointment_date: (a.appointment_start_timestamp || '').split('T')[0],
+                appointment_time_slot: (a.appointment_start_timestamp || '').split('T')[1]?.substring(0, 5)
+            }));
             console.log('Appointments:', appointments.value);
         } else {
             const errorText = await response.text();
@@ -104,11 +110,11 @@ async function fetchAppointments() {
     <h2>Welcome to the Doctor Dashboard!</h2>
     <p><strong>Logged in as:</strong> {{ currentUserEmail }}</p>
 
-    <h3>Today's appointments</h3>
+    <h3>Upcoming appointments</h3>
 
-    <div v-if="todaysAppointments.length">
+    <div v-if="upcomingAppointments.length">
       <ul>
-        <li v-for="(appt, idx) in todaysAppointments" :key="appt.id || idx">
+        <li v-for="(appt, idx) in upcomingAppointments" :key="appt.id || idx">
           <div>
             <strong>Patient:</strong> {{ appt.patient_name || 'Unknown' }}
           </div>
@@ -121,7 +127,7 @@ async function fetchAppointments() {
       </ul>
     </div>
     <div v-else>
-      <p>No appointments for today.</p>
+      <p>No upcoming appointments.</p>
     </div>
 
     <button @click="logout" class="logout-btn">Logout</button>
