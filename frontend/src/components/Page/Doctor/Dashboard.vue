@@ -112,19 +112,29 @@ async function fetchAppointments() {
 
     <h3>Upcoming appointments</h3>
 
-    <div v-if="upcomingAppointments.length">
-      <ul>
-        <li v-for="(appt, idx) in upcomingAppointments" :key="appt.id || idx">
-          <div>
-            <strong>Patient:</strong> {{ appt.patient_name || 'Unknown' }}
-          </div>
-          <div>
-            <strong>Date:</strong> {{ appt.appointment_date }}
-            <strong style="margin-left:12px">Time:</strong> {{ appt.appointment_time_slot || 'N/A' }}
-            <strong style="margin-left:12px">Status:</strong> {{ appt.status || 'booked' }}
-          </div>
-        </li>
-      </ul>
+    <div v-if="upcomingAppointments.length" class="table-wrapper">
+      <table class="appointments-table">
+        <thead>
+          <tr>
+            <th>Patient Name</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(appt, idx) in upcomingAppointments" :key="appt.id || idx">
+            <td>{{ appt.patient_name || 'Unknown' }}</td>
+            <td>{{ appt.appointment_date }}</td>
+            <td>{{ appt.appointment_time_slot || 'N/A' }}</td>
+            <td>
+              <span :class="['status-badge', appt.status === 'booked' ? 'booked' : 'completed']">
+                {{ appt.status || 'booked' }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
     <div v-else>
       <p>No upcoming appointments.</p>
@@ -133,3 +143,75 @@ async function fetchAppointments() {
     <button @click="logout" class="logout-btn">Logout</button>
   </div>
 </template>
+
+<style scoped>
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.appointments-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+}
+
+.appointments-table thead {
+  background-color: #1976d2;
+  color: white;
+}
+
+.appointments-table th {
+  padding: 15px;
+  text-align: left;
+  font-weight: 600;
+}
+
+.appointments-table td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.appointments-table tbody tr:hover {
+  background-color: #f5f5f5;
+}
+
+.appointments-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-badge.booked {
+  background-color: #e3f2fd;
+  color: #1565c0;
+}
+
+.status-badge.completed {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.logout-btn {
+  padding: 10px 20px;
+  background-color: #d32f2f;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-top: 20px;
+}
+
+.logout-btn:hover {
+  background-color: #b71c1c;
+}
+</style>
