@@ -756,6 +756,51 @@ def get_available_slots(doctor_id, date_str):
     
     return jsonify({"available_slots": available_slots}), 200
 
+@app.route('/api/appointment/<int:appointment_id>', methods=['PUT'])
+@auth_required('token')
+def update_user_appointment(appointment_id):
+    """
+    Update appointment status. Users can update their own appointments.
+    Doctors can update appointments they're assigned to.
+    Patients can update their own appointments.
+    """
+    appointment = Appointment.query.get(appointment_id)
+    if not appointment:
+        return jsonify({"message": "Appointment not found"}), 404
+    
+    # Check authorization
+    doctor_role = user_datastore.find_role('doctor')
+    patient_role = user_datastore.find_role('patient')
+    
+    is_doctor = doctor_role in current_user.roles
+    is_patient = patient_role in current_user.roles
+    
+    # Check if user has permission to update this appointment
+    if is_doctor:
+        # Doctor can only update appointments they're assigned to
+        doctor = Doctor.query.filter_by(user_id=current_user.id).first()
+        if not doctor or doctor.id != appointment.doctor_id:
+            return jsonify({"message": "You can only update your own appointments"}), 403
+    elif is_patient:
+        # Patient can only update their own appointments
+        patient = Patient.query.filter_by(user_id=current_user.id).first()
+        if not patient or patient.id != appointment.patient_id:
+            return jsonify({"message": "You can only update your own appointments"}), 403
+    else:
+        return jsonify({"message": "Unauthorized access"}), 403
+    
+    data = request.get_json()
+    
+    # Update status if provided
+    if data.get('status'):
+        valid_statuses = ['booked', 'completed', 'canceled']
+        if data.get('status') not in valid_statuses:
+            return jsonify({"message": f"Invalid status. Must be one of: {', '.join(valid_statuses)}"}), 400
+        appointment.status = data.get('status')
+    
+    db.session.commit()
+    return jsonify({"message": "Appointment updated successfully"}), 200
+
 
 
 # Setup Database and Create admin User

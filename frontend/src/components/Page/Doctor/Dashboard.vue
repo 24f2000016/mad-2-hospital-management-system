@@ -101,6 +101,36 @@ async function fetchAppointments() {
     }
 }
 
+async function cancelAppointment(appointmentId) {
+    const token = localStorage.getItem('auth_token');
+    try {
+        const response = await fetch(`http://127.0.0.1:5000/api/appointment/${appointmentId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authentication-Token': token
+            },
+            body: JSON.stringify({ status: 'canceled' })
+        });
+
+        if (response.ok) {
+            // Update the local appointments list
+            const appointmentIndex = appointments.value.findIndex(a => a.id === appointmentId);
+            if (appointmentIndex !== -1) {
+                appointments.value[appointmentIndex].status = 'canceled';
+            }
+            console.log('Appointment canceled successfully');
+        } else {
+            const errorText = await response.text();
+            console.error('Failed to cancel appointment:', errorText);
+            alert('Failed to cancel appointment');
+        }
+    } catch (error) {
+        console.error('Error canceling appointment:', error);
+        alert('Error canceling appointment');
+    }
+}
+
 
 </script>
 
@@ -120,6 +150,7 @@ async function fetchAppointments() {
             <th>Date</th>
             <th>Time</th>
             <th>Status</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>
@@ -128,9 +159,19 @@ async function fetchAppointments() {
             <td>{{ appt.appointment_date }}</td>
             <td>{{ appt.appointment_time_slot || 'N/A' }}</td>
             <td>
-              <span :class="['status-badge', appt.status === 'booked' ? 'booked' : 'completed']">
+              <span :class="['status-badge', appt.status === 'booked' ? 'booked' : appt.status === 'canceled' ? 'canceled' : 'completed']">
                 {{ appt.status || 'booked' }}
               </span>
+            </td>
+            <td>
+              <button 
+                v-if="appt.status !== 'canceled'" 
+                @click="cancelAppointment(appt.id)" 
+                class="cancel-btn"
+              >
+                Cancel
+              </button>
+              <span v-else class="canceled-text">Canceled</span>
             </td>
           </tr>
         </tbody>
@@ -198,6 +239,32 @@ async function fetchAppointments() {
 .status-badge.completed {
   background-color: #e8f5e9;
   color: #2e7d32;
+}
+
+.status-badge.canceled {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+.canceled-text {
+  color: #d32f2f;
+  font-weight: 600;
+}
+
+.cancel-btn {
+  padding: 6px 12px;
+  background-color: #d32f2f;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+}
+
+.cancel-btn:hover {
+  background-color: #b71c1c;
 }
 
 .logout-btn {
