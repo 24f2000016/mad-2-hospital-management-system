@@ -37,7 +37,19 @@ onMounted(async () => {
 
     if (response.ok) {
       const data = await response.json();
-      // Extract email from the message or response
+      
+      // Check user role and redirect if not a patient
+      const userRoles = data.current_user_roles || [];
+      
+      if (userRoles.includes('admin')) {
+        router.push('/admin-dashboard');
+        return;
+      } else if (userRoles.includes('doctor')) {
+        router.push('/doctor-dashboard');
+        return;
+      }
+      
+      // If patient or no role, display user email
       currentUserEmail.value = data.current_user_email || 'Unknown User';
     } else {
       currentUserEmail.value = 'Unable to fetch user data';
