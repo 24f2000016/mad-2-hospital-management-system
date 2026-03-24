@@ -6,8 +6,7 @@ const router = useRouter();
 const currentUserEmail = ref('Loading...');
 
 const logout = () => {
-  localStorage.removeItem('auth_token');
-  router.push('/');
+  router.push('/logout');
 };
 
 const profile = () => {

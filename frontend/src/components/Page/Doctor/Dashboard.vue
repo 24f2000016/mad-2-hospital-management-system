@@ -29,8 +29,7 @@ const upcomingAppointments = computed(() => {
 });
 
 const logout = () => {
-  localStorage.removeItem('auth_token');
-  router.push('/');
+  router.push('/logout');
 };
 
 
