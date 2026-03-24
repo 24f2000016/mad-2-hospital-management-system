@@ -16,6 +16,7 @@ import AllPatients from "@/components/Page/Admin/AllPatients.vue";
 import AllDepartments from "@/components/Page/Admin/AllDepartments.vue";
 import AllAppointments from "@/components/Page/Admin/AllAppointments.vue";
 import Logout from "@/components/Page/General/Logout.vue";
+import AssignedPatients from "@/components/Page/Doctor/AssignedPatients.vue";
 
 import { createRouter, createWebHistory } from "vue-router";
 
@@ -40,6 +41,7 @@ const router = createRouter({
     { path: "/admin/all-departments", component:AllDepartments },
     { path: "/admin/all-appointments", component:AllAppointments },
     { path: "/logout", component:Logout },
+    { path: "/doctor/assigned-patients", component:AssignedPatients },
   ],
 });
 

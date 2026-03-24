@@ -32,6 +32,10 @@ const logout = () => {
   router.push('/logout');
 };
 
+const goToAssignedPatients = () => {
+  router.push('/doctor/assigned-patients');
+};
+
 
 
 
@@ -180,7 +184,10 @@ async function cancelAppointment(appointmentId) {
       <p>No upcoming appointments.</p>
     </div>
 
-    <button @click="logout" class="logout-btn">Logout</button>
+    <div class="button-group">
+      <button @click="goToAssignedPatients" class="assigned-patients-btn">Assigned Patients</button>
+      <button @click="logout" class="logout-btn">Logout</button>
+    </div>
   </div>
 </template>
 
@@ -279,5 +286,26 @@ async function cancelAppointment(appointmentId) {
 
 .logout-btn:hover {
   background-color: #b71c1c;
+}
+
+.button-group {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.assigned-patients-btn {
+  padding: 10px 20px;
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.assigned-patients-btn:hover {
+  background-color: #1565c0;
 }
 </style>
