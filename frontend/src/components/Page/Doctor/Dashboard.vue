@@ -40,8 +40,9 @@ const markCompleted = (appointmentId) => {
   router.push(`/doctor/complete-appointment?id=${appointmentId}`);
 };
 
-
-
+const goToMyAvailability = () => {
+  router.push('/doctor/my-availability');
+};
 
 onMounted(async () => {
   const token = localStorage.getItem('auth_token');
@@ -196,6 +197,7 @@ async function cancelAppointment(appointmentId) {
     </div>
 
     <div class="button-group">
+      <button @click="goToMyAvailability" class="availability-btn">My Availability</button>
       <button @click="goToAssignedPatients" class="assigned-patients-btn">Assigned Patients</button>
       <button @click="logout" class="logout-btn">Logout</button>
     </div>
@@ -320,6 +322,21 @@ async function cancelAppointment(appointmentId) {
   display: flex;
   gap: 10px;
   margin-top: 20px;
+}
+
+.availability-btn {
+  padding: 10px 20px;
+  background-color: #ff9800;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.availability-btn:hover {
+  background-color: #f57c00;
 }
 
 .assigned-patients-btn {

@@ -71,11 +71,11 @@ class Patient(db.Model):
 
 class Appointment(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True, nullable=False, unique=True)
-    patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
-    doctor_id = db.Column(db.Integer, db.ForeignKey('doctor.id'), nullable=False)
+    patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'))
+    doctor_id = db.Column(db.Integer, db.ForeignKey('doctor.id'))
     appointment_start_timestamp = db.Column(db.DateTime(), nullable=False)
     appointment_end_timestamp = db.Column(db.DateTime(), nullable=False)
-    status = db.Column(db.String(), default='booked', nullable=False)  # 'booked', 'completed', 'canceled'
+    status = db.Column(db.String(), default='booked', nullable=False)  # 'booked', 'completed', 'canceled', 'unavailable'
     patient = db.relationship('Patient', back_populates='appointments', cascade='all, delete-orphan', single_parent=True)
     doctor = db.relationship('Doctor', back_populates='appointments', cascade='all, delete-orphan', single_parent=True)
     patient_history = db.relationship('PatientHistory', back_populates='appointment', uselist=False)
@@ -92,13 +92,6 @@ class PatientHistory(db.Model):
     follow_up_date = db.Column(db.Date())
     additional_notes = db.Column(db.String())
     appointment = db.relationship('Appointment', back_populates='patient_history', cascade='all, delete-orphan', single_parent=True)
-
-class DoctorAvailability(db.Model):
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True, nullable=False, unique=True)
-    doctor_id = db.Column(db.Integer, db.ForeignKey('doctor.id'), nullable=False)
-    available_date = db.Column(db.Date(), nullable=False)
-    morning_slot = db.Column(db.Boolean(), default=False, nullable=False)
-    evening_slot = db.Column(db.Boolean(), default=False, nullable=False)
 
 class Department(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True, nullable=False, unique=True)
@@ -735,11 +728,12 @@ def get_available_slots(doctor_id, date_str):
     if not doctor:
         return jsonify({"message": "Doctor not found"}), 404
     
-    # Get all booked appointments for this doctor on this date
+    # Get all booked and unavailable appointments for this doctor on this date
     booked_appointments = Appointment.query.filter(
         Appointment.doctor_id == doctor_id,
         Appointment.appointment_start_timestamp >= datetime.combine(target_date, datetime.min.time()),
-        Appointment.appointment_start_timestamp < datetime.combine(target_date + __import__('datetime').timedelta(days=1), datetime.min.time())
+        Appointment.appointment_start_timestamp < datetime.combine(target_date + __import__('datetime').timedelta(days=1), datetime.min.time()),
+        Appointment.status.in_(['booked', 'unavailable'])
     ).all()
     
     available_slots = []
@@ -902,6 +896,90 @@ def complete_appointment(appointment_id):
         db.session.rollback()
         return jsonify({"message": f"Error completing appointment: {str(e)}"}), 500
 
+
+@app.route('/api/doctor/unavailable-slots', methods=['POST'])
+@auth_required('token')
+def create_unavailable_slot():
+    """Doctor blocks a time slot for unavailability"""
+    doctor_role = user_datastore.find_role('doctor')
+    if doctor_role not in current_user.roles:
+        return jsonify({"message": "Only doctors can block slots"}), 403
+    
+    doctor = Doctor.query.filter_by(user_id=current_user.id).first()
+    if not doctor:
+        return jsonify({"message": "Doctor record not found"}), 404
+    
+    data = request.get_json()
+    
+    try:
+        start_timestamp = datetime.fromisoformat(data.get('start_timestamp'))
+        end_timestamp = datetime.fromisoformat(data.get('end_timestamp'))
+    except (ValueError, TypeError):
+        return jsonify({"message": "Invalid timestamp format"}), 400
+    
+    # Create unavailable appointment
+    unavailable_slot = Appointment(
+        patient_id=None,  # No patient for unavailable slots
+        doctor_id=doctor.id,
+        appointment_start_timestamp=start_timestamp,
+        appointment_end_timestamp=end_timestamp,
+        status='unavailable'
+    )
+    
+    db.session.add(unavailable_slot)
+    db.session.commit()
+    
+    return jsonify({
+        "message": "Slot blocked successfully",
+        "slot_id": unavailable_slot.id
+    }), 201
+
+
+@app.route('/api/doctor/unavailable-slots/<int:doctor_id>', methods=['GET'])
+@auth_required('token')
+def get_unavailable_slots(doctor_id):
+    """Get all unavailable slots for a doctor"""
+    unavailable_slots = Appointment.query.filter_by(
+        doctor_id=doctor_id,
+        status='unavailable'
+    ).all()
+    
+    slots_data = []
+    for slot in unavailable_slots:
+        slots_data.append({
+            'id': slot.id,
+            'start_timestamp': slot.appointment_start_timestamp.isoformat(),
+            'end_timestamp': slot.appointment_end_timestamp.isoformat(),
+            'start_time': slot.appointment_start_timestamp.strftime('%H:%M'),
+            'end_time': slot.appointment_end_timestamp.strftime('%H:%M'),
+            'date': slot.appointment_start_timestamp.date().isoformat()
+        })
+    
+    return jsonify({"unavailable_slots": slots_data}), 200
+
+
+@app.route('/api/doctor/unavailable-slots/<int:slot_id>', methods=['DELETE'])
+@auth_required('token')
+def delete_unavailable_slot(slot_id):
+    """Doctor removes an unavailable slot"""
+    doctor_role = user_datastore.find_role('doctor')
+    if doctor_role not in current_user.roles:
+        return jsonify({"message": "Only doctors can unblock slots"}), 403
+    
+    doctor = Doctor.query.filter_by(user_id=current_user.id).first()
+    
+    slot = Appointment.query.get(slot_id)
+    if not slot:
+        return jsonify({"message": "Slot not found"}), 404
+    
+    # Verify this is the doctor's slot and it's unavailable
+    if slot.doctor_id != doctor.id or slot.status != 'unavailable':
+        return jsonify({"message": "Cannot delete this slot"}), 403
+    
+    db.session.delete(slot)
+    db.session.commit()
+    
+    return jsonify({"message": "Slot unblocked successfully"}), 200
 
 
 # Setup Database and Create admin User
