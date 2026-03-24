@@ -659,6 +659,32 @@ def manage_appointments():
             })
         return jsonify({"appointments": appointments_data}), 200
 
+@app.route('/api/appointment/<int:appointment_id>', methods=['GET'])
+@auth_required('token')
+def get_appointment_details(appointment_id):
+    """
+    Get details of a specific appointment.
+    """
+    appointment = Appointment.query.get(appointment_id)
+    if not appointment:
+        return jsonify({"message": "Appointment not found"}), 404
+    
+    appointment_data = {
+        'id': appointment.id,
+        'patient_id': appointment.patient_id,
+        'doctor_id': appointment.doctor_id,
+        'patient_name': f"{appointment.patient.first_name or ''} {appointment.patient.last_name or ''}".strip() if appointment.patient else None,
+        'doctor_name': f"{appointment.doctor.first_name or ''} {appointment.doctor.last_name or ''}".strip() if appointment.doctor else None,
+        'doctor_email': appointment.doctor.user.email if appointment.doctor and appointment.doctor.user else None,
+        'appointment_start_timestamp': appointment.appointment_start_timestamp.isoformat() if appointment.appointment_start_timestamp else None,
+        'appointment_end_timestamp': appointment.appointment_end_timestamp.isoformat() if appointment.appointment_end_timestamp else None,
+        'appointment_date': appointment.appointment_start_timestamp.date().isoformat() if appointment.appointment_start_timestamp else None,
+        'appointment_time_slot': appointment.appointment_start_timestamp.time().isoformat()[:5] if appointment.appointment_start_timestamp else None,
+        'status': appointment.status
+    }
+    
+    return jsonify(appointment_data), 200
+
 @app.route('/api/appointments/<int:appointment_id>', methods=['PUT'])
 @auth_required('token')
 def update_appointment(appointment_id):
@@ -800,6 +826,81 @@ def update_user_appointment(appointment_id):
     
     db.session.commit()
     return jsonify({"message": "Appointment updated successfully"}), 200
+
+
+@app.route('/api/appointments/<int:appointment_id>/complete', methods=['PUT'])
+@auth_required('token')
+def complete_appointment(appointment_id):
+    """
+    Complete an appointment and save patient history.
+    Only the assigned doctor can complete an appointment.
+    """
+    appointment = Appointment.query.get(appointment_id)
+    if not appointment:
+        return jsonify({"message": "Appointment not found"}), 404
+    
+    # Check if current user is the assigned doctor
+    doctor_role = user_datastore.find_role('doctor')
+    if doctor_role not in current_user.roles:
+        return jsonify({"message": "Only doctors can complete appointments"}), 403
+    
+    doctor = Doctor.query.filter_by(user_id=current_user.id).first()
+    if not doctor or doctor.id != appointment.doctor_id:
+        return jsonify({"message": "You can only complete your own appointments"}), 403
+    
+    # Check if appointment is not already completed or canceled
+    if appointment.status in ['completed', 'canceled']:
+        return jsonify({"message": f"Cannot complete an appointment that is already {appointment.status}"}), 400
+    
+    data = request.get_json()
+    
+    # Validate required fields
+    if not data.get('diagnosis') or not data.get('diagnosis').strip():
+        return jsonify({"message": "Diagnosis is required"}), 400
+    
+    try:
+        # Create or update patient history record
+        patient_history = PatientHistory.query.filter_by(appointment_id=appointment_id).first()
+        
+        if not patient_history:
+            patient_history = PatientHistory(appointment_id=appointment_id)
+        
+        # Update patient history with form data
+        patient_history.visit_type = data.get('visit_type', 'consultation')
+        patient_history.symptoms = data.get('symptoms', '')
+        patient_history.diagnosis = data.get('diagnosis', '')
+        patient_history.test_done = data.get('test_done', '')
+        patient_history.prescription = data.get('prescription', '')
+        patient_history.medicines = data.get('medicines', '')
+        patient_history.additional_notes = data.get('additional_notes', '')
+        
+        # Handle follow_up_date if provided
+        if data.get('follow_up_date'):
+            try:
+                follow_up_date = datetime.strptime(data.get('follow_up_date'), '%Y-%m-%d').date()
+                patient_history.follow_up_date = follow_up_date
+            except (ValueError, TypeError):
+                return jsonify({"message": "Invalid follow_up_date format. Use YYYY-MM-DD"}), 400
+        
+        # Save patient history
+        if not patient_history.id:
+            db.session.add(patient_history)
+        
+        # Update appointment status to completed
+        appointment.status = 'completed'
+        
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Appointment completed successfully",
+            "appointment_id": appointment.id,
+            "status": appointment.status,
+            "patient_history_id": patient_history.id
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": f"Error completing appointment: {str(e)}"}), 500
 
 
 

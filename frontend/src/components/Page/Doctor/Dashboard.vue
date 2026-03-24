@@ -36,6 +36,10 @@ const goToAssignedPatients = () => {
   router.push('/doctor/assigned-patients');
 };
 
+const markCompleted = (appointmentId) => {
+  router.push(`/doctor/complete-appointment?id=${appointmentId}`);
+};
+
 
 
 
@@ -168,6 +172,13 @@ async function cancelAppointment(appointmentId) {
             </td>
             <td>
               <button 
+                v-if="appt.status === 'booked'" 
+                @click="markCompleted(appt.id)" 
+                class="complete-btn"
+              >
+                Mark Completed
+              </button>
+              <button 
                 v-if="appt.status !== 'canceled'" 
                 @click="cancelAppointment(appt.id)" 
                 class="cancel-btn"
@@ -271,6 +282,23 @@ async function cancelAppointment(appointmentId) {
 
 .cancel-btn:hover {
   background-color: #b71c1c;
+}
+
+.complete-btn {
+  padding: 6px 12px;
+  background-color: #388e3c;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+  margin-right: 8px;
+}
+
+.complete-btn:hover {
+  background-color: #2e7d32;
 }
 
 .logout-btn {
