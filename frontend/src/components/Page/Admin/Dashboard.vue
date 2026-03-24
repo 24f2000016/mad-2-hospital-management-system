@@ -38,6 +38,10 @@ function navigateToAllAppointments() {
     window.location.href = '/admin/all-appointments';
 }
 
+function logout() {
+    window.location.href = '/logout';
+}
+
 onMounted(() => {
     const token = localStorage.getItem('auth_token');
     if (!token) {
@@ -113,7 +117,7 @@ onMounted(() => {
 
 <template>
     <div class="admin-dashboard">
-        <h2>Admin Dashboard - Patient List</h2>
+        <h2>Admin Dashboard</h2>
         
         <div v-if="loading" class="loading">
             <p>Loading patients...</p>
@@ -147,6 +151,9 @@ onMounted(() => {
             <div v-if="patients.length === 0" class="no-patients">
                 <p>No patients registered yet.</p>
             </div>
+        </div>
+        <div class="logout-btn-container">
+            <button class="logout-btn" @click="logout" title="Logout">Logout</button>
         </div>
     </div>
 </template>
