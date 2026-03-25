@@ -678,6 +678,39 @@ def get_appointment_details(appointment_id):
     
     return jsonify(appointment_data), 200
 
+@app.route('/api/patient/my-appointments', methods=['GET'])
+@auth_required('token')
+def get_patient_appointments():
+    """
+    Get all appointments for the current logged-in patient, sorted by latest first.
+    """
+    patient_role = user_datastore.find_role('patient')
+    if patient_role not in current_user.roles:
+        return jsonify({"message": "Only patients can access this endpoint"}), 403
+    
+    patient = current_user.patient
+    if not patient:
+        return jsonify({"message": "Patient record not found"}), 404
+    
+    # Get all appointments for this patient, sorted by appointment_start_timestamp descending (latest first)
+    patient_appointments = Appointment.query.filter_by(patient_id=patient.id).order_by(Appointment.appointment_start_timestamp.desc()).all()
+    
+    appointments_data = []
+    for appt in patient_appointments:
+        appointments_data.append({
+            'id': appt.id,
+            'doctor_id': appt.doctor_id,
+            'doctor_name': f"{appt.doctor.first_name or ''} {appt.doctor.last_name or ''}".strip() if appt.doctor else None,
+            'department': appt.doctor.department.name if appt.doctor and appt.doctor.department else None,
+            'appointment_start_timestamp': appt.appointment_start_timestamp.isoformat() if appt.appointment_start_timestamp else None,
+            'appointment_end_timestamp': appt.appointment_end_timestamp.isoformat() if appt.appointment_end_timestamp else None,
+            'appointment_date': appt.appointment_start_timestamp.date().isoformat() if appt.appointment_start_timestamp else None,
+            'appointment_time': appt.appointment_start_timestamp.time().isoformat()[:5] if appt.appointment_start_timestamp else None,
+            'status': appt.status
+        })
+    
+    return jsonify({"appointments": appointments_data}), 200
+
 @app.route('/api/appointments/<int:appointment_id>', methods=['PUT'])
 @auth_required('token')
 def update_appointment(appointment_id):

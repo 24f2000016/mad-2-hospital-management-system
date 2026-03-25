@@ -17,6 +17,10 @@ const schedule_appointment = () => {
   router.push('/dashboard/schedule/doctor');
 };
 
+const my_appointments = () => {
+  router.push('/patient/my-appointments');
+};
+
 onMounted(async () => {
   const token = localStorage.getItem('auth_token');
   
@@ -67,6 +71,7 @@ onMounted(async () => {
         <p><strong>Logged in as:</strong> {{ currentUserEmail }}</p>
         <button @click="profile">Profile</button>
         <button @click="schedule_appointment">Schedule Appointment </button>
+        <button @click="my_appointments">My Appointments</button>
         <button @click="logout" >Logout</button>
     </div>
 </template>

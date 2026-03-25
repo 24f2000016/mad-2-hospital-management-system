@@ -21,6 +21,7 @@ import CompleteAppointment from "@/components/Page/Doctor/CompleteAppointment.vu
 import MyAvailability from "@/components/Page/Doctor/MyAvailability.vue";
 import PatientMedicalHistory from "@/components/Page/Doctor/PatientMedicalHistory.vue";
 import MyMedicalHistory from "@/components/Page/Patient/MyMedicalHistory.vue";
+import MyAppointments from "@/components/Page/Patient/MyAppointments.vue";
 
 import { createRouter, createWebHistory } from "vue-router";
 
@@ -49,7 +50,8 @@ const router = createRouter({
     { path: "/doctor/complete-appointment", component:CompleteAppointment },
     { path: "/doctor/my-availability", component:MyAvailability },
     { path: "/doctor/patient-medical-history/:patientId", component:PatientMedicalHistory },
-    { path: "/patient/my-history", component:MyMedicalHistory }
+    { path: "/patient/my-history", component:MyMedicalHistory },
+    { path: "/patient/my-appointments", component:MyAppointments }
   ],
 });
 
