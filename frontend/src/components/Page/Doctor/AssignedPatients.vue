@@ -44,6 +44,10 @@ const backToDashboard = () => {
   router.back();
 };
 
+const viewPatientHistory = (patientId) => {
+  router.push(`/doctor/patient-medical-history/${patientId}`);
+};
+
 onMounted(async () => {
   const token = localStorage.getItem('auth_token');
   
@@ -117,6 +121,7 @@ async function fetchAppointments() {
             <th>Time</th>
             <th>Department</th>
             <th>Status</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -129,6 +134,14 @@ async function fetchAppointments() {
               <span :class="['status-badge', appt.status === 'booked' ? 'booked' : appt.status === 'canceled' ? 'canceled' : 'completed']">
                 {{ appt.status || 'booked' }}
               </span>
+            </td>
+            <td>
+              <button 
+                @click="viewPatientHistory(appt.patient_id)" 
+                class="history-btn"
+              >
+                View History
+              </button>
             </td>
           </tr>
         </tbody>
@@ -240,5 +253,21 @@ async function fetchAppointments() {
 
 .logout-btn:hover {
   background-color: #b71c1c;
+}
+
+.history-btn {
+  padding: 6px 12px;
+  background-color: #ff9800;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+}
+
+.history-btn:hover {
+  background-color: #f57c00;
 }
 </style>

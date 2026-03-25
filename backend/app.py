@@ -982,6 +982,176 @@ def delete_unavailable_slot(slot_id):
     return jsonify({"message": "Slot unblocked successfully"}), 200
 
 
+@app.route('/api/patient/<int:patient_id>/medical-history', methods=['GET'])
+@auth_required('token')
+def get_patient_medical_history(patient_id):
+    """
+    Get medical history for a specific patient (all completed appointments with any doctor)
+    Doctors can view this if they've treated the patient or have an upcoming appointment with them
+    """
+    doctor_role = user_datastore.find_role('doctor')
+    patient_role = user_datastore.find_role('patient')
+    is_doctor = doctor_role in current_user.roles
+    is_patient = patient_role in current_user.roles
+    
+    patient = Patient.query.get(patient_id)
+    if not patient:
+        return jsonify({"message": "Patient not found"}), 404
+    
+    # Authorization check - only doctors treating this patient or patient viewing self can access
+    if is_doctor:
+        doctor = Doctor.query.filter_by(user_id=current_user.id).first()
+        if not doctor:
+            return jsonify({"message": "Doctor record not found"}), 404
+        
+        # Check if doctor has treated this patient (completed appointment)
+        has_treated = Appointment.query.filter_by(
+            patient_id=patient_id,
+            doctor_id=doctor.id,
+            status='completed'
+        ).first()
+        
+        # Check if doctor has an upcoming appointment with this patient
+        today = date.today()
+        has_upcoming = Appointment.query.filter(
+            Appointment.patient_id == patient_id,
+            Appointment.doctor_id == doctor.id,
+            Appointment.appointment_start_timestamp >= datetime.combine(today, datetime.min.time()),
+            Appointment.status == 'booked'
+        ).first()
+        
+        if not has_treated and not has_upcoming:
+            return jsonify({"message": "You don't have permission to view this patient's medical history"}), 403
+    
+    elif is_patient:
+        # Patient can only view their own history
+        if current_user.patient.id != patient_id:
+            return jsonify({"message": "You can only view your own medical history"}), 403
+    else:
+        return jsonify({"message": "Unauthorized access"}), 403
+    
+    # Get all completed appointments with their medical history, sorted newest first
+    completed_appointments = Appointment.query.filter_by(
+        patient_id=patient_id,
+        status='completed'
+    ).order_by(Appointment.appointment_start_timestamp.desc()).all()
+    
+    history_data = []
+    for appt in completed_appointments:
+        history_entry = {
+            'appointment_id': appt.id,
+            'doctor_name': f"{appt.doctor.first_name or ''} {appt.doctor.last_name or ''}".strip() if appt.doctor else 'Unknown',
+            'department': appt.doctor.department.name if appt.doctor and appt.doctor.department else 'Unknown',
+            'appointment_date': appt.appointment_start_timestamp.date().isoformat() if appt.appointment_start_timestamp else None,
+            'appointment_time': appt.appointment_start_timestamp.time().isoformat()[:5] if appt.appointment_start_timestamp else None,
+        }
+        
+        # Include patient history details if they exist
+        if appt.patient_history:
+            ph = appt.patient_history
+            history_entry.update({
+                'visit_type': ph.visit_type or 'N/A',
+                'symptoms': ph.symptoms or 'N/A',
+                'diagnosis': ph.diagnosis or 'N/A',
+                'tests': ph.test_done or 'N/A',
+                'prescription': ph.prescription or 'N/A',
+                'medicines': ph.medicines or 'N/A',
+                'additional_notes': ph.additional_notes or 'N/A',
+                'follow_up_date': ph.follow_up_date.isoformat() if ph.follow_up_date else None
+            })
+        else:
+            # Show N/A for appointments without history details
+            history_entry.update({
+                'visit_type': 'N/A',
+                'symptoms': 'N/A',
+                'diagnosis': 'N/A',
+                'tests': 'N/A',
+                'prescription': 'N/A',
+                'medicines': 'N/A',
+                'additional_notes': 'N/A',
+                'follow_up_date': None
+            })
+        
+        history_data.append(history_entry)
+    
+    return jsonify({
+        "patient_name": f"{patient.first_name or ''} {patient.last_name or ''}".strip(),
+        "patient_id": patient.id,
+        "dob": patient.dob.isoformat() if patient.dob else None,
+        "sex": patient.sex or 'N/A',
+        "contact_number": patient.contact_number or 'N/A',
+        "total_appointments": len(history_data),
+        "medical_history": history_data
+    }), 200
+
+
+@app.route('/api/my/medical-history', methods=['GET'])
+@auth_required('token')
+def get_my_medical_history():
+    """
+    Get the current user's medical history (for patients viewing their own history)
+    """
+    patient_role = user_datastore.find_role('patient')
+    if patient_role not in current_user.roles:
+        return jsonify({"message": "Only patients can access this endpoint"}), 403
+    
+    patient = current_user.patient
+    if not patient:
+        return jsonify({"message": "Patient record not found"}), 404
+    
+    # Get all completed appointments with their medical history, sorted newest first
+    completed_appointments = Appointment.query.filter_by(
+        patient_id=patient.id,
+        status='completed'
+    ).order_by(Appointment.appointment_start_timestamp.desc()).all()
+    
+    history_data = []
+    for appt in completed_appointments:
+        history_entry = {
+            'appointment_id': appt.id,
+            'doctor_name': f"{appt.doctor.first_name or ''} {appt.doctor.last_name or ''}".strip() if appt.doctor else 'Unknown',
+            'department': appt.doctor.department.name if appt.doctor and appt.doctor.department else 'Unknown',
+            'appointment_date': appt.appointment_start_timestamp.date().isoformat() if appt.appointment_start_timestamp else None,
+            'appointment_time': appt.appointment_start_timestamp.time().isoformat()[:5] if appt.appointment_start_timestamp else None,
+        }
+        
+        # Include patient history details if they exist
+        if appt.patient_history:
+            ph = appt.patient_history
+            history_entry.update({
+                'visit_type': ph.visit_type or 'N/A',
+                'symptoms': ph.symptoms or 'N/A',
+                'diagnosis': ph.diagnosis or 'N/A',
+                'tests': ph.test_done or 'N/A',
+                'prescription': ph.prescription or 'N/A',
+                'medicines': ph.medicines or 'N/A',
+                'additional_notes': ph.additional_notes or 'N/A',
+                'follow_up_date': ph.follow_up_date.isoformat() if ph.follow_up_date else None
+            })
+        else:
+            history_entry.update({
+                'visit_type': 'N/A',
+                'symptoms': 'N/A',
+                'diagnosis': 'N/A',
+                'tests': 'N/A',
+                'prescription': 'N/A',
+                'medicines': 'N/A',
+                'additional_notes': 'N/A',
+                'follow_up_date': None
+            })
+        
+        history_data.append(history_entry)
+    
+    return jsonify({
+        "patient_name": f"{patient.first_name or ''} {patient.last_name or ''}".strip(),
+        "dob": patient.dob.isoformat() if patient.dob else None,
+        "sex": patient.sex or 'N/A',
+        "contact_number": patient.contact_number or 'N/A',
+        "total_appointments": len(history_data),
+        "medical_history": history_data
+    }), 200
+
+
 # Setup Database and Create admin User
 with app.app_context():
     db.create_all()
