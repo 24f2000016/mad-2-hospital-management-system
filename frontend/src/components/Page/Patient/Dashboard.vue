@@ -9,6 +9,10 @@ const logout = () => {
   router.push('/logout');
 };
 
+const medical_history = () => {
+  router.push('/patient/my-history');
+};
+
 const profile = () => {
   router.push('/dashboard/profile');
 };
@@ -72,6 +76,7 @@ onMounted(async () => {
         <button @click="profile">Profile</button>
         <button @click="schedule_appointment">Schedule Appointment </button>
         <button @click="my_appointments">My Appointments</button>
+        <button @click="medical_history">My Medical History</button>
         <button @click="logout" >Logout</button>
     </div>
 </template>
