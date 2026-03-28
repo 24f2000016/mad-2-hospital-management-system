@@ -6,9 +6,7 @@ const departments = ref([]);
 
 
 
-onMounted(() => {
-    fetchDepartments();
-});
+onMounted(fetchDepartments);
 
 
 
