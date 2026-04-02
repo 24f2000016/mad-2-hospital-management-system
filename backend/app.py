@@ -1020,10 +1020,12 @@ def delete_unavailable_slot(slot_id):
 def get_patient_medical_history(patient_id):
     """
     Get medical history for a specific patient (all completed appointments with any doctor)
-    Doctors can view this if they've treated the patient or have an upcoming appointment with them
+    Admins can view any patient's history. Doctors can view if they've treated the patient or have an upcoming appointment with them
     """
+    admin_role = user_datastore.find_role('admin')
     doctor_role = user_datastore.find_role('doctor')
     patient_role = user_datastore.find_role('patient')
+    is_admin = admin_role in current_user.roles
     is_doctor = doctor_role in current_user.roles
     is_patient = patient_role in current_user.roles
     
@@ -1031,8 +1033,11 @@ def get_patient_medical_history(patient_id):
     if not patient:
         return jsonify({"message": "Patient not found"}), 404
     
-    # Authorization check - only doctors treating this patient or patient viewing self can access
-    if is_doctor:
+    # Authorization check - admins have full access, doctors need to have treated/had upcoming appointment, patients can view own only
+    if is_admin:
+        # Admins can view any patient's medical history
+        pass
+    elif is_doctor:
         doctor = Doctor.query.filter_by(user_id=current_user.id).first()
         if not doctor:
             return jsonify({"message": "Doctor record not found"}), 404

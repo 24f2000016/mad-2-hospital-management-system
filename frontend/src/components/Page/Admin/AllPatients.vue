@@ -1,6 +1,8 @@
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 
+const router = useRouter();
 const patients = ref([]);
 const loading = ref(true);
 const error = ref(null);
@@ -138,6 +140,10 @@ function closeEditModal() {
     editError.value = null;
 }
 
+function viewPatientMedicalHistory(patientId) {
+    router.push(`/doctor/patient-medical-history/${patientId}`);
+}
+
 function savePatientDetails() {
     editLoading.value = true;
     editError.value = null;
@@ -256,6 +262,9 @@ onMounted(() => {
                         <td>
                             <div class="actions-group">
                                 <button @click="openEditModal(patient)" class="edit-btn">Edit</button>
+                                <button @click="viewPatientMedicalHistory(patient.id)" class="history-btn">
+                                    Medical History
+                                </button>
                                 <button 
                                     v-if="patient.active"
                                     @click="blacklistPatient(patient)" 
@@ -485,6 +494,21 @@ h2 {
 
 .whitelist-btn:hover {
     background-color: #2e7d32;
+}
+
+.history-btn {
+    padding: 6px 12px;
+    background-color: #9c27b0;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background-color 0.3s ease;
+}
+
+.history-btn:hover {
+    background-color: #7b1fa2;
 }
 
 .actions-group {

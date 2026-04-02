@@ -10,14 +10,7 @@ const doctor_department_id = ref('');
 const departments = ref([]);
 const token = localStorage.getItem('auth_token');
 
-
-
-
-onMounted(() => {
-    fetchDepartments();
-});
-
-
+onMounted(fetchDepartments);
 
 async function fetchDepartments() {
     const token = localStorage.getItem('auth_token');
@@ -42,11 +35,6 @@ async function fetchDepartments() {
         console.error('Error fetching departments:', error);
     }
 }
-
-
-
-
-
 
 
 async function addDoctor() {
@@ -87,8 +75,28 @@ async function addDoctor() {
         alert("Error adding doctor.");
     }
 }
-
 </script>
+
+<template>
+    <div class="add-doctor-container">
+        <h2>Add Doctor</h2>
+        <div class="form-container">
+            <input v-model="doctor_first_name" type="text" placeholder="Enter doctor's first name">
+            <input v-model="doctor_last_name" type="text" placeholder="Enter doctor's last name">
+            <input v-model="doctor_email" type="email" placeholder="Enter doctor's email">
+            <input v-model="doctor_username" type="text" placeholder="Set doctor's username">
+            <input v-model="doctor_password" type="password" placeholder="Set password for doctor">
+            <input v-model="doctor_experience" type="text" placeholder="Enter doctor's experience">
+            <select v-model="doctor_department_id">
+                <option disabled value="">Select Department</option>
+                <option v-for="department in departments" :key="department.id" :value="department.id">
+                    {{ department.name }}
+                </option>
+            </select>
+            <button @click="addDoctor" class="add-btn">Add Doctor</button>
+        </div>
+    </div>
+</template>
 
 <style scoped>
 .add-doctor-container {
@@ -150,24 +158,3 @@ select:focus {
     background-color: #0d47a1;
 }
 </style>
-
-<template>
-    <div class="add-doctor-container">
-        <h2>Add Doctor</h2>
-        <div class="form-container">
-            <input v-model="doctor_first_name" type="text" placeholder="Enter doctor's first name">
-            <input v-model="doctor_last_name" type="text" placeholder="Enter doctor's last name">
-            <input v-model="doctor_email" type="email" placeholder="Enter doctor's email">
-            <input v-model="doctor_username" type="text" placeholder="Set doctor's username">
-            <input v-model="doctor_password" type="password" placeholder="Set password for doctor">
-            <input v-model="doctor_experience" type="text" placeholder="Enter doctor's experience">
-            <select v-model="doctor_department_id">
-                <option disabled value="">Select Department</option>
-                <option v-for="department in departments" :key="department.id" :value="department.id">
-                    {{ department.name }}
-                </option>
-            </select>
-            <button @click="addDoctor" class="add-btn">Add Doctor</button>
-        </div>
-    </div>
-</template>

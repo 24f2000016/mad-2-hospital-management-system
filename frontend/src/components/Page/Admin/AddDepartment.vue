@@ -4,11 +4,7 @@ const departmentName = ref('');
 const departmentDescription = ref('');
 const departments = ref([]);
 
-
-
 onMounted(fetchDepartments);
-
-
 
 async function fetchDepartments() {
     const token = localStorage.getItem('auth_token');
