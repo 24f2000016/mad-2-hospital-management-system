@@ -43,19 +43,35 @@ async function update() {
 
 <template>
   <div>
-    <input v-model="username" type="text" placeholder="username" />
-    <input v-model="first_name" type="text" placeholder="first name">
-    <input v-model="last_name" type="text" placeholder="last name">
-    <input v-model="dob" type="date" placeholder="date of birth">
-    <input v-model="contact_number" type="text" placeholder="contact number">
-    <input v-model="email" type="email" placeholder="email" />
-    <input v-model="password" type="password" placeholder="password" />
-    <select v-model="sex">
+    <label for="username">Username: </label>
+    <input v-model="username" id="username" type="text" placeholder="username">
+    <br>
+    <label for="first_name">First name: </label>
+    <input v-model="first_name" id="first_name" type="text" placeholder="first name">
+    <br>
+    <label for="last_name">Last name: </label>
+    <input v-model="last_name" id="last_name" type="text" placeholder="last name">
+    <br>
+    <label for="dob">Date of birth: </label>
+    <input v-model="dob" id="dob" type="date" placeholder="date of birth">
+    <br>
+    <label for="contact_number">Contact number: </label>
+    <input v-model="contact_number" id="contact_number" type="text" placeholder="contact number">
+    <br>
+    <label for="email">Email: </label>
+    <input v-model="email" id="email" type="email" placeholder="email">
+    <br>
+    <label for="password">Password: </label>
+    <input v-model="password" id="password" type="password" placeholder="password">
+    <br>
+    <label for="sex">Sex: </label>
+    <select v-model="sex" id="sex">
       <option disabled value="">Sex</option>
       <option value="male">Male</option>
       <option value="female">Female</option>
       <option value="other">Other</option>
     </select>
+    <br>
     <button @click="update">Update</button>
   </div>
 </template>
