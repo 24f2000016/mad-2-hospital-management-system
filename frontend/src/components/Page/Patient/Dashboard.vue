@@ -73,10 +73,55 @@ onMounted(async () => {
         <h1>Dashboard</h1>
         <p>Welcome to your personalized dashboard!</p>
         <p><strong>Logged in as:</strong> {{ currentUserEmail }}</p>
-        <button @click="profile">Profile</button>
-        <button @click="schedule_appointment">Schedule Appointment </button>
-        <button @click="my_appointments">My Appointments</button>
-        <button @click="medical_history">My Medical History</button>
-        <button @click="logout" >Logout</button>
+        <div class="action-buttons">
+          <button @click="profile" class="blue-btn">Profile</button>
+          <button @click="schedule_appointment" class="blue-btn">Schedule Appointment </button>
+          <button @click="my_appointments" class="blue-btn">My Appointments</button>
+          <button @click="medical_history" class="blue-btn">My Medical History</button>
+          <button @click="logout" class="red-btn">Logout</button>
+        </div>
     </div>
 </template>
+
+<style scoped>
+.dashboard{
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif
+}
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    justify-content: flex;
+}
+
+.blue-btn {
+    padding: 6px 12px;
+    background-color: #1976d2;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background-color 0.3s ease;
+}
+
+.blue-btn:hover {
+    background-color: #0655af;
+}
+
+.red-btn {
+  padding: 6px 12px;
+    background-color: #d21919;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background-color 0.3s ease;
+}
+
+.red-btn:hover {
+    background-color: #af0606;
+}
+</style>
