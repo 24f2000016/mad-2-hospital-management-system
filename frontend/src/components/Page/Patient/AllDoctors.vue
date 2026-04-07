@@ -131,8 +131,9 @@ async function scheduleAppointment() {
         <p><strong>Department:</strong> {{ selectedDoctor.department }}</p>
         <p><strong>ID:</strong> {{ selectedDoctor.id }}</p>
     </div>
-
-    <button @click="scheduleAppointment">Schedule Appointment</button>
+    <div class="schedule-btn">
+        <button @click="scheduleAppointment" class="blue-btn">Schedule Appointment</button>
+    </div>
 </template>
 
 <style scoped>
@@ -201,5 +202,25 @@ async function scheduleAppointment() {
     background-color: #f5f5f5;
     border-color: #1976d2;
     box-shadow: 0 2px 4px rgba(25, 118, 210, 0.2);
+}
+
+.blue-btn {
+  padding: 6px 12px;
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background-color 0.3s ease;
+  min-height: 50px;
+}
+
+.blue-btn:hover {
+  background-color: #0655af;
+}
+
+.schedule-btn{
+    margin-top: 15px;
 }
 </style>

@@ -45,7 +45,7 @@ onMounted(() => {
     <div class="all-departments">
         <div class="header">
             <h2>All Departments</h2>
-            <button @click="goBack" class="back-btn">← Back to Dashboard</button>
+            <button @click="goBack" class="back-btn">← Back</button>
         </div>
 
         <div v-if="loading" class="loading">

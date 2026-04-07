@@ -153,7 +153,7 @@ onMounted(() => {
             </div>
         </div>
         <div class="logout-btn-container">
-            <button class="logout-btn" @click="logout" title="Logout">Logout</button>
+            <button class="red-btn" @click="logout" title="Logout">Logout</button>
         </div>
     </div>
 </template>
@@ -300,4 +300,20 @@ h2 {
 .add-btn:hover {
     background-color: #1565c0;
 }
+
+.red-btn {
+  padding: 6px 12px;
+    background-color: #d21919;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background-color 0.3s ease;
+}
+
+.red-btn:hover {
+    background-color: #af0606;
+}
+
 </style>

@@ -105,8 +105,8 @@ const rescheduleAppointment = async (appointmentId) => {
 <template>
   <div class="my-appointments">
     <div class="header">
+      <button @click="goBack" class="back-btn">← Back</button>
       <h2>My Appointments</h2>
-      <button @click="goBack" class="back-btn">← Back to Dashboard</button>
     </div>
 
     <div v-if="error" class="error">
@@ -169,8 +169,8 @@ const rescheduleAppointment = async (appointmentId) => {
 
 .header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 15px;
   margin-bottom: 30px;
 }
 
@@ -180,18 +180,18 @@ h2 {
 }
 
 .back-btn {
-  padding: 10px 20px;
-  background-color: #6c757d;
+  padding: 8px 16px;
+  background-color: #1976d2;
   color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.2s ease;
 }
 
 .back-btn:hover {
-  background-color: #5a6268;
+  background-color: #1565c0;
 }
 
 .error {
