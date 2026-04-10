@@ -34,11 +34,11 @@ async function register() {
     alert(data.message);
 
     if (response.ok) {
-      alert("Registration Successful, please login. (register.vue line 32)");
+      alert("Registration Successful, please login.");
       // Redirect to dashboard after successful login
       router.push('/login');
     } else {
-      alert("Registration Failed (register.vue line 35)");
+      alert("Registration Failed");
     }
   } catch (error) {
     console.error(error);
